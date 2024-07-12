@@ -61,9 +61,11 @@ const singleUpload = TryCatch(async (req, res, next) => {
 const completeProfile = TryCatch(async (req, res, next) => {
   const {
     userId,
+    name,
     role,
     dob,
-    address,
+    addressZipCode,
+    addressType,
     driverImage,
     drivingLicenseNumber,
     drivingLicenseImage,
@@ -81,26 +83,42 @@ const completeProfile = TryCatch(async (req, res, next) => {
   if (!user)
     return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
 
-  const updatedAddress = { ...user.address, ...address };
   const jti = generateRandomJti(20);
 
-  user = await User.findByIdAndUpdate(userId, {
-    role,
-    dob,
-    address: updatedAddress,
-    driverImage,
-    drivingLicenseNumber,
-    drivingLicenseImage,
-    carInsuranceNumber,
-    carInsuranceNumberExpDate,
-    carInsuranceImage,
-    socialSecurityNumber,
-    vehicleNumber,
-    licensePlate,
-    vehicleType,
-    vehicleImage,
-    jti,
-  });
+  let data = {};
+
+  if (role == 1) {
+    const updatedAddress = { ...user.address, addressZipCode };
+    data = {
+      role,
+      name,
+      dob,
+      address: updatedAddress,
+      driverImage,
+      drivingLicenseNumber,
+      drivingLicenseImage,
+      carInsuranceNumber,
+      carInsuranceNumberExpDate,
+      carInsuranceImage,
+      socialSecurityNumber,
+      vehicleNumber,
+      licensePlate,
+      vehicleType,
+      vehicleImage,
+      jti,
+    };
+  } else {
+    const updatedAddress = { ...user.address, addressZipCode, addressType };
+    data = {
+      role,
+      name,
+      dob,
+      address: updatedAddress,
+      jti,
+    };
+  }
+
+  user = await User.findByIdAndUpdate(userId, data);
 
   const token = generateJsonWebToken({ id: user._id, jti });
 
@@ -239,6 +257,23 @@ const changePassword = TryCatch(async (req, res, next) => {
   });
 });
 
+const getProfileInformation = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const user = await getUserById(userId);
+  if (!user)
+    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    data: {
+      email: user.email,
+      phone: user.phone,
+      state: user.address.state,
+      zipCode: user.address.zipCode,
+    },
+  });
+});
+
 export const userController = {
   register,
   completeProfile,
@@ -248,5 +283,6 @@ export const userController = {
   verifyOTP,
   resetPassword,
   changePassword,
-  resendOTP
+  resendOTP,
+  getProfileInformation,
 };

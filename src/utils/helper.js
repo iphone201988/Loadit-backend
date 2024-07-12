@@ -19,14 +19,30 @@ export const TryCatch = (fn) => (req, res, next) => {
 
 export const validate = (schema) =>
   TryCatch(async (req, res, next) => {
-    const result = schema.validate(req.body, { abortEarly: false });
-    const errorMessage = result?.error?.details[0].message;
+    let errorMessage = "";
+    let validationErrors = [];
+
+    if (schema.body) {
+      const result = schema.body.validate(req.body, { abortEarly: false });
+      errorMessage = result?.error?.details[0].message;
+      validationErrors = result?.error?.details.map((error) => error.message);
+    }
+    if (schema.query) {
+      const result = schema.query.validate(req.query, { abortEarly: false });
+      errorMessage = result?.error?.details[0].message;
+      validationErrors = result?.error?.details.map((error) => error.message);
+    }
+    if (schema.params) {
+      const result = schema.params.validate(req.params, { abortEarly: false });
+      errorMessage = result?.error?.details[0].message;
+      validationErrors = result?.error?.details.map((error) => error.message);
+    }
 
     if (errorMessage) {
       return res.status(400).json({
         success: false,
         message: errorMessage,
-        details: result?.error?.details.map((error) => error.message),
+        details: validationErrors,
       });
     }
 

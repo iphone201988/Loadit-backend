@@ -15,3 +15,9 @@ export const addressType = {
   PERSONAL_USE: 1,
   COMPANY_USE: 2,
 };
+
+export const jobType = {
+  SINGLE_DROPOFF: 1,
+  MULTIPLE_DROPOFF: 2,
+  TEAM_JOB: 3,
+};

@@ -50,6 +50,12 @@ userRoutes.post(
   userController.changePassword
 );
 
+userRoutes.get(
+  "/getProfileInformation",
+  authenticationMiddleware,
+  userController.getProfileInformation
+);
+
 userRoutes.post(
   "/singleUpload",
   upload.single("file"),
