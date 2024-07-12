@@ -13,4 +13,18 @@ router.post(
   jobController.createJob
 );
 
+router.get(
+  "/getJobDetails/:jobId",
+  authenticationMiddleware,
+  validate(jobSchema.getJobDetailsValidation),
+  jobController.getJobDetails
+);
+
+router.get(
+  "/getJobs",
+  authenticationMiddleware,
+  validate(jobSchema.getJobsValidation),
+  jobController.getJobs
+);
+
 export default router;

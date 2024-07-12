@@ -274,6 +274,19 @@ const getProfileInformation = TryCatch(async (req, res, next) => {
   });
 });
 
+const logoutUser = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const user = await getUserById(userId);
+
+  if (!user)
+    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+
+  user.jti = undefined;
+  await user.save();
+
+  res.status(httpStatus.OK).json({ success: true, message: "User logged out successfully" });
+});
+
 export const userController = {
   register,
   completeProfile,
@@ -285,4 +298,5 @@ export const userController = {
   changePassword,
   resendOTP,
   getProfileInformation,
+  logoutUser
 };

@@ -1,7 +1,15 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, mongo } from "mongoose";
+import { deliveryStatus, jobType } from "../utils/enums/enums.js";
 
 const jobSchema = new Schema(
   {
+    orderNo: {
+      type: String,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
     title: {
       type: String,
     },
@@ -14,7 +22,6 @@ const jobSchema = new Schema(
     pickUpTime: {
       type: String,
     },
-
     dropOffDate: {
       type: String,
     },
@@ -43,6 +50,9 @@ const jobSchema = new Schema(
         },
       },
     ],
+    distance: {
+      type: String,
+    },
     jobType: {
       type: Number,
       enum: [
@@ -51,9 +61,34 @@ const jobSchema = new Schema(
         jobType.TEAM_JOB,
       ],
     },
+    deliveryPartner: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    deliveryStatus: {
+      type: Number,
+      enum: [
+        deliveryStatus.IN_PROGRESS,
+        deliveryStatus.DELIVERED,
+        deliveryStatus.CANCELED,
+      ],
+    },
   },
   { timestamps: true }
 );
+
+jobSchema.pre("save", async function () {
+  const job = this;
+  if (job.isNew) {
+    const lastJob = await Job.findOne({}, {}, { sort: { createdAt: -1 } });
+    if (lastJob) {
+      const lastOrderNo = Number(lastJob.orderNo.replace("#", ""));
+      job.orderNo = `#${lastOrderNo + 1}`;
+    } else {
+      job.orderNo = "#1000";
+    }
+  }
+});
 
 const Job = model("Job", jobSchema);
 export default Job;

@@ -68,4 +68,10 @@ userRoutes.put(
   userController.completeProfile
 );
 
+userRoutes.post(
+  "/logoutUser",
+  authenticationMiddleware,
+  userController.logoutUser
+);
+
 export default userRoutes;

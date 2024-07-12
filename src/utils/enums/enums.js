@@ -21,3 +21,9 @@ export const jobType = {
   MULTIPLE_DROPOFF: 2,
   TEAM_JOB: 3,
 };
+
+export const deliveryStatus = {
+  IN_PROGRESS: 1,
+  DELIVERED: 2,
+  CANCELED: 3,
+};

@@ -4,15 +4,30 @@ const createJobValidation = {
   body: Joi.object({
     title: Joi.string().required(),
     pickUpLocation: Joi.string().required(),
-    pickUpDate: Joi.date().required(),
-    pickUpTime: Joi.string()
-      .regex(/^([01]\d|2[0-3]):([0-5]\d)$/)
+    pickUpDate: Joi.date()
+      .min("now")
       .messages({
-        "string.pattern.base": "Time must be in HH:mm format",
+        "date.min": "Date must not be in the past",
       })
       .required(),
-    dropOffDate: Joi.date().required(),
-    dropOffTime: Joi.string().required(),
+    pickUpTime: Joi.string()
+      .regex(/^([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])\s*([AaPp][Mm])$/)
+      .messages({
+        "string.pattern.base": "Pickup time must be in HH:mm format",
+      })
+      .required(),
+    dropOffDate: Joi.date()
+      .min("now")
+      .messages({
+        "date.min": "Date must not be in the past",
+      })
+      .required(),
+    dropOffTime: Joi.string()
+      .regex(/^([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])\s*([AaPp][Mm])$/)
+      .messages({
+        "string.pattern.base": "Dropoff time must be in HH:mm format",
+      })
+      .required(),
     dropOffs: Joi.array()
       .items({
         dropOffLocation: Joi.string().required(),
@@ -27,6 +42,21 @@ const createJobValidation = {
   }),
 };
 
+const getJobDetailsValidation = {
+  params: Joi.object({
+    jobId: Joi.string().required(),
+  }),
+};
+
+const getJobsValidation = {
+  query: Joi.object({
+    scheduled: Joi.boolean().optional(),
+    completed: Joi.boolean().optional(),
+  }),
+};
+
 export default {
   createJobValidation,
+  getJobDetailsValidation,
+  getJobsValidation
 };
