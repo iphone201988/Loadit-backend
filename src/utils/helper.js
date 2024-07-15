@@ -50,7 +50,9 @@ export const validate = (schema) =>
   });
 
 export const generateJsonWebToken = (data) => {
-  const token = jwt.sign(data, process.env.JWT_SECRET_KEY);
+  const token = jwt.sign(data, process.env.JWT_SECRET_KEY, {
+    expiresIn: "3d",
+  });
   return token;
 };
 

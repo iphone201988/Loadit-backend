@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { dropOffStatus, jobType } from "../utils/enums/enums.js";
 
 const createJobValidation = {
   body: Joi.object({
@@ -38,7 +39,9 @@ const createJobValidation = {
         instructions: Joi.string().required(),
       })
       .required(),
-    jobType: Joi.number().valid(1, 2, 3).required(),
+    jobType: Joi.number()
+      .valid(jobType.SINGLE_DROPOFF, jobType.MULTIPLE_DROPOFF, jobType.TEAM_JOB)
+      .required(),
   }),
 };
 
@@ -48,15 +51,59 @@ const getJobDetailsValidation = {
   }),
 };
 
-const getJobsValidation = {
+const getJobsByFiltersValidation = {
   query: Joi.object({
     scheduled: Joi.boolean().optional(),
     completed: Joi.boolean().optional(),
   }),
 };
 
+const applyJobValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required(),
+  }),
+};
+
+const getJobApplicationsValidation = {
+  params: Joi.object({
+    jobId: Joi.string().required(),
+  }),
+};
+
+const selectJobDriverValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required(),
+    userId: Joi.string().required(),
+  }),
+};
+
+const completeJobValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required(),
+    dropOffId: Joi.string().required(),
+    dropOffStatus: Joi.number()
+      .valid(
+        dropOffStatus.ON_THE_WAY_TO_PICKUP,
+        dropOffStatus.ON_THE_WAY_TO_DROPOFF,
+        dropOffStatus.COMPLETED
+      )
+      .optional(),
+    pickupImage: Joi.string().optional(),
+    dropOffImage: Joi.string().optional(),
+    dropOffPoint: Joi.number()
+      .valid(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+      .optional(),
+    dropOffDetails: Joi.string().optional(),
+    isDeliveryCompleted: Joi.boolean().optional(),
+  }),
+};
+
 export default {
   createJobValidation,
   getJobDetailsValidation,
-  getJobsValidation
+  getJobsByFiltersValidation,
+  applyJobValidation,
+  getJobApplicationsValidation,
+  selectJobDriverValidation,
+  completeJobValidation,
 };

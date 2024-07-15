@@ -1,5 +1,66 @@
 import { Schema, model, mongo } from "mongoose";
-import { deliveryStatus, jobType } from "../utils/enums/enums.js";
+import {
+  deliveryStatus,
+  dropOffPoint,
+  dropOffStatus,
+  jobType,
+} from "../utils/enums/enums.js";
+
+const dropOffSchema = new Schema({
+  dropOffLocation: {
+    type: String,
+  },
+  numberOfItems: {
+    type: Number,
+  },
+  weightOfItems: {
+    type: Number,
+  },
+  lengthOfItems: {
+    type: Number,
+  },
+  heightOfItems: {
+    type: Number,
+  },
+  instructions: {
+    type: String,
+  },
+  pickupImage: {
+    type: String,
+  },
+  dropOffImage: {
+    type: String,
+  },
+  dropOffStatus: {
+    type: Number,
+    enum: [
+      dropOffStatus.ON_THE_WAY_TO_PICKUP,
+      dropOffStatus.ON_THE_WAY_TO_DROPOFF,
+      dropOffStatus.COMPLETED,
+    ],
+  },
+  dropOffPoint: {
+    type: Number,
+    enum: [
+      dropOffPoint.AT_FRONT_DOOR,
+      dropOffPoint.AT_BACK_DOOR,
+      dropOffPoint.AT_SIDE_DOOR,
+      dropOffPoint.ON_THE_PORCH,
+      dropOffPoint.AT_FRONT_DESK,
+      dropOffPoint.AT_CONCIERGE,
+      dropOffPoint.IN_MAILROOM,
+      dropOffPoint.IN_LOBBY,
+      dropOffPoint.AT_GARAGE,
+      dropOffPoint.HANDED_TO_RECIPIENT,
+      dropOffPoint.WITH_RECIPIENTIST,
+      dropOffPoint.WITH_SECURITY,
+      dropOffPoint.WITH_DOOR_PERSON,
+    ],
+  },
+  dropOffDetails: {
+    type: String,
+  },
+});
 
 const jobSchema = new Schema(
   {
@@ -28,28 +89,7 @@ const jobSchema = new Schema(
     dropOffTime: {
       type: String,
     },
-    dropOffs: [
-      {
-        dropOffLocation: {
-          type: String,
-        },
-        numberOfItems: {
-          type: Number,
-        },
-        weightOfItems: {
-          type: Number,
-        },
-        lengthOfItems: {
-          type: Number,
-        },
-        heightOfItems: {
-          type: Number,
-        },
-        instructions: {
-          type: String,
-        },
-      },
-    ],
+    dropOffs: [dropOffSchema],
     distance: {
       type: String,
     },
@@ -61,9 +101,18 @@ const jobSchema = new Schema(
         jobType.TEAM_JOB,
       ],
     },
+    apply: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     deliveryPartner: {
       type: Schema.Types.ObjectId,
       ref: "User",
+    },
+    deliveryPartnerImageVerification: {
+      type: Boolean,
     },
     deliveryStatus: {
       type: Number,
@@ -73,6 +122,17 @@ const jobSchema = new Schema(
         deliveryStatus.CANCELED,
       ],
     },
+    isJobQuit: [
+      {
+        driverId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+        },
+        reason: {
+          type: String,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

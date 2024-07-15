@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { addressType, userRole, vehicleType } from "../utils/enums/enums.js";
 
 const registerUserValidation = {
   body: Joi.object({
@@ -16,14 +17,16 @@ const completeProfileValidation = {
   body: Joi.object({
     userId: Joi.string().required(),
     name: Joi.string().required(),
-    role: Joi.number().valid(1, 2).required(),
+    role: Joi.number().valid(userRole.DRIVER, userRole.CUSTOMER).required(),
     dob: Joi.date().required(),
     addressZipCode: Joi.string().required(),
-    addressType: Joi.number().when("role", {
-      is: 2,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
+    addressType: Joi.number()
+      .valid(addressType.COMPANY_USE, addressType.PERSONAL_USE)
+      .when("role", {
+        is: 2,
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+      }),
     driverImage: Joi.string().when("role", {
       is: 1,
       then: Joi.required(),
@@ -69,11 +72,19 @@ const completeProfileValidation = {
       then: Joi.required(),
       otherwise: Joi.optional(),
     }),
-    vehicleType: Joi.number().when("role", {
-      is: 1,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
+    vehicleType: Joi.number()
+      .valid(
+        vehicleType.BOX_TRUCK,
+        vehicleType.CAR,
+        vehicleType.SMALL_TRUCK,
+        vehicleType.MINI_VAN,
+        vehicleType.SPRINTER_VAN
+      )
+      .when("role", {
+        is: 1,
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+      }),
     vehicleImage: Joi.string().when("role", {
       is: 1,
       then: Joi.required(),

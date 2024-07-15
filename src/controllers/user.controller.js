@@ -16,6 +16,8 @@ import {
 } from "../utils/helper.js";
 import httpStatus from "http-status";
 import ErrorHandler from "../utils/ErrorHandler.js";
+import moment from "moment";
+import { userRole } from "../utils/enums/enums.js";
 
 const register = TryCatch(async (req, res, next) => {
   const { email, phone, address, password } = req.body;
@@ -87,18 +89,20 @@ const completeProfile = TryCatch(async (req, res, next) => {
 
   let data = {};
 
-  if (role == 1) {
+  if (role == userRole.DRIVER) {
     const updatedAddress = { ...user.address, addressZipCode };
     data = {
       role,
       name,
-      dob,
+      dob: moment(dob).format("YYYY-MM-DD"),
       address: updatedAddress,
       driverImage,
       drivingLicenseNumber,
       drivingLicenseImage,
       carInsuranceNumber,
-      carInsuranceNumberExpDate,
+      carInsuranceNumberExpDate: moment(carInsuranceNumberExpDate).format(
+        "YYYY-MM-DD"
+      ),
       carInsuranceImage,
       socialSecurityNumber,
       vehicleNumber,
@@ -259,18 +263,13 @@ const changePassword = TryCatch(async (req, res, next) => {
 
 const getProfileInformation = TryCatch(async (req, res, next) => {
   const { userId } = req;
-  const user = await getUserById(userId);
-  if (!user)
-    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+  const user = await User.findById(userId).select(
+    "-password -otp -otpExpiry -createdAt -updatedAt  -__v -jti"
+  );
 
   res.status(httpStatus.OK).json({
     success: true,
-    data: {
-      email: user.email,
-      phone: user.phone,
-      state: user.address.state,
-      zipCode: user.address.zipCode,
-    },
+    user,
   });
 });
 
@@ -284,7 +283,9 @@ const logoutUser = TryCatch(async (req, res, next) => {
   user.jti = undefined;
   await user.save();
 
-  res.status(httpStatus.OK).json({ success: true, message: "User logged out successfully" });
+  res
+    .status(httpStatus.OK)
+    .json({ success: true, message: "User logged out successfully" });
 });
 
 export const userController = {
@@ -298,5 +299,5 @@ export const userController = {
   changePassword,
   resendOTP,
   getProfileInformation,
-  logoutUser
+  logoutUser,
 };

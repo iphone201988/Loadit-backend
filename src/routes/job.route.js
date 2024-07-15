@@ -21,10 +21,50 @@ router.get(
 );
 
 router.get(
-  "/getJobs",
+  "/getJobsByFilters",
   authenticationMiddleware,
-  validate(jobSchema.getJobsValidation),
-  jobController.getJobs
+  validate(jobSchema.getJobsByFiltersValidation),
+  jobController.getJobsByFilters
+);
+
+router.get(
+  "/getAllJobsOfCustomer",
+  authenticationMiddleware,
+  jobController.getAllJobsOfCustomer
+);
+
+router.get(
+  "/getAvailableJobsForDriver",
+  authenticationMiddleware,
+  jobController.getAvailableJobsForDriver
+);
+
+router.put(
+  "/applyForJob/:jobId",
+  authenticationMiddleware,
+  validate(jobSchema.applyJobValidation),
+  jobController.applyForJob
+);
+
+router.get(
+  "/getJobApplications/:jobId",
+  authenticationMiddleware,
+  validate(jobSchema.getJobApplicationsValidation),
+  jobController.getJobApplications
+);
+
+router.put(
+  "/selectJobDriver",
+  authenticationMiddleware,
+  validate(jobSchema.selectJobDriverValidation),
+  jobController.selectJobDriver
+);
+
+router.put(
+  "/completeJob",
+  authenticationMiddleware,
+  validate(jobSchema.completeJobValidation),
+  jobController.completeJob
 );
 
 export default router;
