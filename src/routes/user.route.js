@@ -51,12 +51,6 @@ userRoutes.get(
   userController.getProfileInformation
 );
 
-userRoutes.post(
-  "/singleUpload",
-  upload.single("file"),
-  userController.singleUpload
-);
-
 userRoutes.put(
   "/completeProfile",
   upload.fields([
