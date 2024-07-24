@@ -1,11 +1,16 @@
 import httpStatus from "http-status";
+import { userRole } from "../utils/enums/enums.js";
 
 export const validateFiles = (requiredFiles) => {
   return (req, res, next) => {
+    const { role } = req.body;
+
+    if (role && role == userRole.CUSTOMER) return next();
+
     let missingFiles = [];
 
     if (requiredFiles.length === 1) {
-      if (req.file.fieldname !== requiredFiles[0]) {
+      if (!req.file || req.file.fieldname !== requiredFiles[0]) {
         missingFiles.push(requiredFiles[0]);
       }
     } else {
@@ -19,6 +24,7 @@ export const validateFiles = (requiredFiles) => {
         details: missingFiles.map((field) => `${field} is required`),
       });
     }
+
     next();
   };
 };

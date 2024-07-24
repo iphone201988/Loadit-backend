@@ -374,6 +374,7 @@ const completeJob = TryCatch(async (req, res, next) => {
     const inCompleteDropOff = allDropOffs.find(
       (dropOff) => dropOff.dropOffStatus != 3
     );
+    
     if (inCompleteDropOff)
       return next(
         new ErrorHandler("Please complete all dropoffs", httpStatus.BAD_REQUEST)

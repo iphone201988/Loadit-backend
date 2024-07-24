@@ -144,7 +144,7 @@ const login = TryCatch(async (req, res, next) => {
 
   if (!user.role)
     return next(
-      new ErrorHandler("Please complete your registration", httpStatus.OK)
+      new ErrorHandler("Please complete your registration", httpStatus.BAD_REQUEST)
     );
 
   if (!user)
