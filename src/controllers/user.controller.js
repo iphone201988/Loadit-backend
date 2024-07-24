@@ -54,14 +54,6 @@ const register = TryCatch(async (req, res, next) => {
     });
 });
 
-const singleUpload = TryCatch(async (req, res, next) => {
-  console.log(process.env.BACKEND_URL + req.file.path.replace("src/", ""));
-  res.status(httpStatus.CREATED).json({
-    success: true,
-    url: process.env.BACKEND_URL + req.file.path.replace("src/", ""),
-  });
-});
-
 const completeProfile = TryCatch(async (req, res, next) => {
   const {
     userId,
@@ -144,7 +136,10 @@ const login = TryCatch(async (req, res, next) => {
 
   if (!user.role)
     return next(
-      new ErrorHandler("Please complete your registration", httpStatus.BAD_REQUEST)
+      new ErrorHandler(
+        "Please complete your registration",
+        httpStatus.BAD_REQUEST
+      )
     );
 
   if (!user)
@@ -347,9 +342,10 @@ const updateUserDocuments = TryCatch(async (req, res, next) => {
   } = req.body;
 
   const { userId } = req;
+  const existingUser = await getUserById(userId);
   const data = {};
 
-  if (role !== userRole.DRIVER)
+  if (existingUser.role !== userRole.DRIVER)
     return next(
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
@@ -389,9 +385,10 @@ const updateUserDocuments = TryCatch(async (req, res, next) => {
 const updateUserVehicleInformation = TryCatch(async (req, res, next) => {
   const { vehicleType } = req.body;
   const { userId } = req;
+  const existingUser = await getUserById(userId);
   const data = {};
 
-  if (role !== userRole.DRIVER)
+  if (existingUser.role !== userRole.DRIVER)
     return next(
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
@@ -414,7 +411,6 @@ const updateUserVehicleInformation = TryCatch(async (req, res, next) => {
 export const userController = {
   register,
   completeProfile,
-  singleUpload,
   login,
   forgotPassword,
   verifyOTP,
