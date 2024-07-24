@@ -80,6 +80,13 @@ router.put(
   jobController.completeJob
 );
 
+router.put(
+  "/quitJob",
+  authenticationMiddleware,
+  validate(jobSchema.quitJobValidation),
+  jobController.quitJob
+);
+
 router.post(
   "/customerReview",
   authenticationMiddleware,

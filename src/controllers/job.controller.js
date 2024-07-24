@@ -170,10 +170,19 @@ const getAvailableJobsForDriver = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
 
+  const currentDate = moment().startOf("day");
+  const currentTime = moment().format("HH:mm");
+
   const jobs = await Job.find({
-    deliveryPartner: { $exists: false },
-    deliveryStatus: { $exists: false },
+    $and: [
+      { dropOffDate: { $gte: currentDate.toDate() } },
+      { dropOffTime: { $gt: currentTime } },
+      { deliveryPartner: { $exists: false } },
+      { deliveryStatus: { $exists: false } },
+    ],
   }).populate("userId", "name");
+
+  // Check if the driver already applied for the job
 
   res.status(httpStatus.OK).json({
     success: true,
@@ -314,13 +323,13 @@ const completeJob = TryCatch(async (req, res, next) => {
   if (!job)
     return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
 
-  if (!job.deliveryPartnerImageVerification)
-    return next(
-      new ErrorHandler(
-        "Please verify your identity first",
-        httpStatus.BAD_REQUEST
-      )
-    );
+  // if (!job.deliveryPartnerImageVerification)
+  //   return next(
+  //     new ErrorHandler(
+  //       "Please verify your identity first",
+  //       httpStatus.BAD_REQUEST
+  //     )
+  //   );
 
   const dropOff = job.dropOffs.id(dropOffId);
 
@@ -374,7 +383,7 @@ const completeJob = TryCatch(async (req, res, next) => {
     const inCompleteDropOff = allDropOffs.find(
       (dropOff) => dropOff.dropOffStatus != 3
     );
-    
+
     if (inCompleteDropOff)
       return next(
         new ErrorHandler("Please complete all dropoffs", httpStatus.BAD_REQUEST)
@@ -504,10 +513,9 @@ const recognizeFace = TryCatch(async (req, res, next) => {
 
   const threshold = 0.6;
   if (distance < threshold) {
-
     job.deliveryPartnerImageVerification = true;
     await job.save();
-    
+
     res.status(httpStatus.OK).json({
       success: true,
       message: "User validated successfully",
@@ -518,6 +526,40 @@ const recognizeFace = TryCatch(async (req, res, next) => {
       message: "User not validated",
     });
   }
+});
+
+const quitJob = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const { jobId, reason } = req.body;
+  const user = await getUserById(userId);
+
+  if (user.role !== userRole.DRIVER)
+    return next(
+      new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  const job = await Job.findById(jobId);
+  if (!job)
+    return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
+
+  if (job.deliveryPartner.toString() !== userId.toString())
+    return next(
+      new ErrorHandler(
+        "You are not assigned to this job",
+        httpStatus.BAD_REQUEST
+      )
+    );
+
+  job.isJobQuit.push({ driverId: userId, reason });
+  job.deliveryPartner = undefined;
+  job.deliveryPartnerImageVerification = false;
+  job.deliveryStatus = deliveryStatus.CANCELED;
+  await job.save();
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "You have quit the job successfully",
+  });
 });
 
 export const jobController = {
@@ -533,4 +575,5 @@ export const jobController = {
   completeJob,
   giveCustomerReview,
   recognizeFace,
+  quitJob,
 };

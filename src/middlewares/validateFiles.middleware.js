@@ -4,7 +4,6 @@ import { userRole } from "../utils/enums/enums.js";
 export const validateFiles = (requiredFiles) => {
   return (req, res, next) => {
     const { role } = req.body;
-
     if (role && role == userRole.CUSTOMER) return next();
 
     let missingFiles = [];

@@ -184,6 +184,17 @@ const recognizeFaceValidation = {
   }),
 };
 
+const quitJobValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required().messages({
+      "any.required": "Job ID is required",
+    }),
+    reason: Joi.string().required().messages({
+      "any.required": "Reason is required",
+    }),
+  }),
+};
+
 export default {
   createJobValidation,
   searchByLocationValidation,
@@ -195,4 +206,5 @@ export default {
   completeJobValidation,
   giveCustomerReviewValidation,
   recognizeFaceValidation,
+  quitJobValidation,
 };
