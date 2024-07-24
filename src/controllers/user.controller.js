@@ -4,7 +4,6 @@ import {
   getUserByEmail,
   getUserById,
   getUserByPhone,
-  sendOTP,
 } from "../services/user.services.js";
 import {
   TryCatch,
@@ -13,6 +12,7 @@ import {
   generateOTP,
   sendOTPOnEmail,
   sendOTPOnPhone,
+  getImages,
 } from "../utils/helper.js";
 import httpStatus from "http-status";
 import ErrorHandler from "../utils/ErrorHandler.js";
@@ -20,7 +20,7 @@ import moment from "moment";
 import { userRole } from "../utils/enums/enums.js";
 
 const register = TryCatch(async (req, res, next) => {
-  const { email, phone, address, password } = req.body;
+  const { email, phone, address, password, deviceType, deviceToken } = req.body;
 
   let user;
   if (email) user = await getUserByEmail(email);
@@ -42,6 +42,8 @@ const register = TryCatch(async (req, res, next) => {
       phone,
       address,
       password,
+      deviceType,
+      deviceToken,
     });
   }
 
@@ -68,18 +70,21 @@ const completeProfile = TryCatch(async (req, res, next) => {
     dob,
     addressZipCode,
     addressType,
-    driverImage,
     drivingLicenseNumber,
-    drivingLicenseImage,
     carInsuranceNumber,
     carInsuranceNumberExpDate,
-    carInsuranceImage,
     socialSecurityNumber,
     vehicleNumber,
     licensePlate,
     vehicleType,
-    vehicleImage,
   } = req.body;
+
+  const allImages = getImages(req, [
+    "driverImage",
+    "drivingLicenseImage",
+    "carInsuranceImage",
+    "vehicleImage",
+  ]);
 
   let user = await User.findById(userId);
   if (!user)
@@ -96,20 +101,17 @@ const completeProfile = TryCatch(async (req, res, next) => {
       name,
       dob: moment(dob).format("YYYY-MM-DD"),
       address: updatedAddress,
-      driverImage,
       drivingLicenseNumber,
-      drivingLicenseImage,
       carInsuranceNumber,
       carInsuranceNumberExpDate: moment(carInsuranceNumberExpDate).format(
         "YYYY-MM-DD"
       ),
-      carInsuranceImage,
       socialSecurityNumber,
       vehicleNumber,
       licensePlate,
       vehicleType,
-      vehicleImage,
       jti,
+      ...allImages,
     };
   } else {
     const updatedAddress = { ...user.address, addressZipCode, addressType };
@@ -134,7 +136,7 @@ const completeProfile = TryCatch(async (req, res, next) => {
 });
 
 const login = TryCatch(async (req, res, next) => {
-  const { email, phone, password } = req.body;
+  const { email, phone, password, deviceType, deviceToken } = req.body;
 
   let user;
   if (email) user = await User.findOne({ email });
@@ -150,10 +152,12 @@ const login = TryCatch(async (req, res, next) => {
 
   const isMatched = await user.matchPassword(password);
   if (!isMatched)
-    return next(new ErrorHandler("Invalid  password", httpStatus.BAD_REQUEST));
+    return next(new ErrorHandler("Invalid password", httpStatus.BAD_REQUEST));
 
   const jti = generateRandomJti(20);
   user.jti = jti;
+  user.deviceType = deviceType;
+  user.deviceToken = deviceToken;
   await user.save();
   const token = generateJsonWebToken({ id: user._id, jti });
 
@@ -172,7 +176,31 @@ const forgotPassword = TryCatch(async (req, res, next) => {
   if (!user)
     return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
 
-  await sendOTP(user);
+  const OTP = generateOTP();
+
+  if (email) {
+    const subject = "Email OTP";
+    const text = `Hi ${user.name},\n\nTo verify your email address, please use the following OTP: ${OTP}\n\nIf you did not request this verification, please ignore this email.\n\nThanks,\nTeam Loadit`;
+    const html = `
+    <div style="margin: 30px; padding: 30px; border: 1px solid black; border-radius: 20px 10px;">
+        <h4><strong>Hi ${user.name},</strong></h4>
+        <p>To verify your email address, please use the following OTP: <strong>${OTP}</strong></p>
+        <p>If you did not request this verification, please ignore this email.</p>
+        <p>Thanks,</p>
+        <p><strong>Team Loadit</strong></p>
+    </div>
+  `;
+    await sendOTPOnEmail(user.email, subject, text, html);
+  }
+
+  if (phone) {
+    const body = `OTP:${OTP}`;
+    await sendOTPOnPhone(body);
+  }
+
+  user.otp = OTP;
+  user.otpExpiry = addMinutesToCurrentTime(2);
+  await user.save();
 
   res.status(httpStatus.OK).json({
     success: true,
@@ -206,24 +234,6 @@ const verifyOTP = TryCatch(async (req, res, next) => {
   res
     .status(httpStatus.OK)
     .json({ success: true, message: "OTP verified successfully", userId });
-});
-
-const resendOTP = TryCatch(async (req, res, next) => {
-  const { userId } = req.body;
-
-  const user = await getUserById(userId);
-  if (!user)
-    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
-
-  await sendOTP(user);
-
-  res.status(httpStatus.OK).json({
-    success: true,
-    message: `OTP has been sent on your ${
-      user.email ? "email" : "phone number"
-    }`,
-    userId: user._id,
-  });
 });
 
 const resetPassword = TryCatch(async (req, res, next) => {
@@ -288,6 +298,119 @@ const logoutUser = TryCatch(async (req, res, next) => {
     .json({ success: true, message: "User logged out successfully" });
 });
 
+const updateUserProfile = TryCatch(async (req, res, next) => {
+  const { email, phone, state, zipCode } = req.body;
+  const { userId } = req;
+
+  const driverImage = getImages(req, ["driverImage"]);
+
+  const user = await getUserById(userId);
+
+  if (email) {
+    const existingUser = await getUserByEmail(email);
+    if (existingUser)
+      return next(
+        new ErrorHandler("Email already exists", httpStatus.BAD_REQUEST)
+      );
+    user.email = email;
+  }
+  if (phone) {
+    const existingUser = await getUserByPhone(phone);
+    if (existingUser)
+      return next(
+        new ErrorHandler("Phone number already exists", httpStatus.BAD_REQUEST)
+      );
+    user.phone = phone;
+  }
+  if (state) user.address.state = state;
+  if (zipCode) user.address.zipCode = zipCode;
+  if (driverImage) user.driverImage = driverImage;
+
+  await user.save();
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    mesage: "User details updated successfully",
+  });
+});
+
+const updateUserDocuments = TryCatch(async (req, res, next) => {
+  const {
+    dob,
+    state,
+    drivingLicenseNumber,
+    carInsuranceNumber,
+    carInsuranceNumberExpDate,
+    socialSecurityNumber,
+    vehicleNumber,
+    licensePlate,
+  } = req.body;
+
+  const { userId } = req;
+  const data = {};
+
+  if (role !== userRole.DRIVER)
+    return next(
+      new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  const images = getImages(req, ["drivingLicenseImage", "carInsuranceImage"]);
+
+  if (dob) data.dob = dob;
+  if (state) data.address.state = state;
+  if (drivingLicenseNumber) data.drivingLicenseNumber = drivingLicenseNumber;
+
+  if (images && images?.drivingLicenseImage)
+    data.drivingLicenseImage = images.drivingLicenseImage;
+
+  if (carInsuranceNumber) data.carInsuranceNumber = carInsuranceNumber;
+
+  if (carInsuranceNumberExpDate)
+    data.carInsuranceNumberExpDate = carInsuranceNumberExpDate;
+
+  if (images && images?.carInsuranceImage)
+    data.carInsuranceImage = images.carInsuranceImage;
+
+  if (socialSecurityNumber) data.socialSecurityNumber = socialSecurityNumber;
+  if (vehicleNumber) data.vehicleNumber = vehicleNumber;
+  if (licensePlate) data.licensePlate = licensePlate;
+
+  const user = await User.findByIdAndUpdate(userId, { ...data });
+
+  if (!user)
+    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "User documents updated successfully",
+  });
+});
+
+const updateUserVehicleInformation = TryCatch(async (req, res, next) => {
+  const { vehicleType } = req.body;
+  const { userId } = req;
+  const data = {};
+
+  if (role !== userRole.DRIVER)
+    return next(
+      new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  const vehicleImage = getImages(req, ["vehicleImage"]);
+
+  if (vehicleType) data.vehicleType = vehicleType;
+  if (vehicleImage) data.vehicleImage = vehicleImage;
+
+  const user = await User.findByIdAndUpdate(userId, { ...data });
+  if (!user)
+    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "User vehicle information updated successfully",
+  });
+});
+
 export const userController = {
   register,
   completeProfile,
@@ -297,7 +420,9 @@ export const userController = {
   verifyOTP,
   resetPassword,
   changePassword,
-  resendOTP,
   getProfileInformation,
   logoutUser,
+  updateUserProfile,
+  updateUserDocuments,
+  updateUserVehicleInformation,
 };

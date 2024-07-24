@@ -74,6 +74,14 @@ const jobSchema = new Schema(
     title: {
       type: String,
     },
+    amount: {
+      type: Number,
+      default: 40,
+    },
+    isAmountDeducted: {
+      type: Boolean,
+      default: false,
+    },
     pickUpLocation: {
       type: String,
     },

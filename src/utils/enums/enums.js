@@ -11,6 +11,11 @@ export const userRole = {
   CUSTOMER: 2,
 };
 
+export const deviceType = {
+  ANDROID: 1,
+  IOS: 2,
+};
+
 export const addressType = {
   PERSONAL_USE: 1,
   COMPANY_USE: 2,
@@ -48,4 +53,9 @@ export const deliveryStatus = {
   IN_PROGRESS: 1,
   DELIVERED: 2,
   CANCELED: 3,
+};
+
+export const transactionType = {
+  CUSTOMER_DEDUCTION: 1,
+  DRIVER_WITHDRAW: 2,
 };

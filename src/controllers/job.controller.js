@@ -1,13 +1,25 @@
-import { TryCatch } from "../utils/helper.js";
+import { TryCatch, getImages } from "../utils/helper.js";
 import Job from "../models/job.model.js";
 import moment from "moment";
 import httpStatus from "http-status";
 import User from "../models/user.model.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
 import { getUserById } from "../services/user.services.js";
-import { getFilteredJobs } from "../services/job.services.js";
+import {
+  fetchImage,
+  getFilteredJobs,
+  getJobById,
+} from "../services/job.services.js";
 import { deliveryStatus, userRole } from "../utils/enums/enums.js";
 import Review from "../models/review.modal.js";
+
+import path from "path";
+import { fileURLToPath } from "url";
+import * as faceapi from "@vladmandic/face-api";
+import canvas from "canvas";
+
+const { Canvas, Image, ImageData } = canvas;
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
 const createJob = TryCatch(async (req, res, next) => {
   const { userId } = req;
@@ -29,7 +41,7 @@ const createJob = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a customer", httpStatus.BAD_REQUEST)
     );
 
-  if (jobType === 1 && dropOffs.length > 1) {
+  if (jobType == 1 && dropOffs.length > 1) {
     return next(
       new ErrorHandler(
         "Single dropoff job can only have one dropoff location",
@@ -40,6 +52,14 @@ const createJob = TryCatch(async (req, res, next) => {
 
   const formattedPickUpDate = moment(pickUpDate).format("YYYY-MM-DD");
   const formattedDropOffDate = moment(dropOffDate).format("YYYY-MM-DD");
+
+  if (formattedPickUpDate > formattedDropOffDate)
+    return next(
+      new ErrorHandler(
+        "Pickup date should be less than dropoff date",
+        httpStatus.BAD_REQUEST
+      )
+    );
 
   const job = await Job.create({
     title,
@@ -53,20 +73,41 @@ const createJob = TryCatch(async (req, res, next) => {
     jobType,
   });
 
-  if (job) {
-    const user = await User.findById(job.userId);
-    res.status(httpStatus.CREATED).json({
-      success: true,
-      message: "Job created successfully",
-      job,
-      createdBy: user.name,
-    });
-  }
+  // const user = await User.findById(job.userId);
+  res.status(httpStatus.CREATED).json({
+    success: true,
+    message: "Job created successfully",
+    job,
+    createdBy: user.name,
+  });
+});
+
+const searchByLocation = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const { location } = req.query;
+
+  const user = await getUserById(userId);
+
+  if (user.role !== userRole.DRIVER)
+    return next(
+      new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  const jobs = await Job.find({
+    pickUpLocation: { $regex: location, $options: "i" },
+  });
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    jobs,
+  });
 });
 
 const getJobDetails = TryCatch(async (req, res, next) => {
   const { jobId } = req.params;
   const { userId } = req;
+
+  console.log(jobId);
 
   const job = await Job.findOne({ _id: jobId, userId }).lean();
 
@@ -100,6 +141,14 @@ const getJobsByFilters = TryCatch(async (req, res, next) => {
 
 const getAllJobsOfCustomer = TryCatch(async (req, res, next) => {
   const { userId } = req;
+
+  const user = await getUserById(userId);
+
+  if (user.role !== userRole.CUSTOMER)
+    return next(
+      new ErrorHandler("User is not a customer", httpStatus.BAD_REQUEST)
+    );
+
   const jobs = await Job.find({ userId }).sort({ updatedAt: -1 });
 
   if (!jobs)
@@ -147,6 +196,8 @@ const applyForJob = TryCatch(async (req, res, next) => {
   if (!job)
     return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
 
+  console.log("job:::", job, job.deliveryPartner);
+
   if (job.deliveryPartner)
     return next(
       new ErrorHandler(
@@ -182,7 +233,7 @@ const getJobApplications = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a customer", httpStatus.BAD_REQUEST)
     );
 
-  const jobs = await Job.findById(jobId)
+  const jobs = await Job.findOne({ _id: jobId, userId })
     .select("apply")
     .populate("apply", "name driverImage");
 
@@ -194,7 +245,7 @@ const getJobApplications = TryCatch(async (req, res, next) => {
 
 const selectJobDriver = TryCatch(async (req, res, next) => {
   const { userId } = req;
-  const { jobId, userId: driverId } = req.body;
+  const { jobId, driverId } = req.body;
 
   const user = await getUserById(userId);
   if (user.role !== userRole.CUSTOMER)
@@ -211,7 +262,11 @@ const selectJobDriver = TryCatch(async (req, res, next) => {
       new ErrorHandler("Selected user is not a driver", httpStatus.BAD_REQUEST)
     );
 
-  const job = await Job.findById(jobId);
+  const job = await Job.findOne({ _id: jobId, userId });
+
+  if (!job)
+    return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
+
   if (job.deliveryPartner)
     return next(
       new ErrorHandler(
@@ -222,7 +277,9 @@ const selectJobDriver = TryCatch(async (req, res, next) => {
   job.deliveryPartner = driverId;
   await job.save();
 
-  // TODO: Send notification to the driver that he has been selected for the job
+  // TODO:
+  // 1: Send notification to the driver that he has been selected for the job
+  // 2: Deduct the amount from the customer card
 
   res.status(httpStatus.OK).json({
     success: true,
@@ -235,8 +292,6 @@ const completeJob = TryCatch(async (req, res, next) => {
     jobId,
     dropOffId,
     dropOffStatus,
-    pickupImage,
-    dropOffImage,
     dropOffPoint,
     dropOffDetails,
     isDeliveryCompleted,
@@ -244,6 +299,9 @@ const completeJob = TryCatch(async (req, res, next) => {
 
   const { userId } = req;
   const user = await getUserById(userId);
+
+  const images = getImages(req, ["pickupImage", "dropOffImage"]);
+
   let message = "";
 
   if (user.role !== userRole.DRIVER)
@@ -251,68 +309,70 @@ const completeJob = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
 
-  const job = await Job.findById(jobId);
+  const job = await Job.findOne({ _id: jobId, deliveryPartner: userId });
+
   if (!job)
     return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
 
-  if (!job.deliveryPartner)
+  if (!job.deliveryPartnerImageVerification)
     return next(
       new ErrorHandler(
-        "Driver not assigned to this job",
+        "Please verify your identity first",
         httpStatus.BAD_REQUEST
       )
     );
-
-  if (userId.toString() !== job.deliveryPartner.toString())
-    return next(
-      new ErrorHandler(
-        "You are not assigned to this job",
-        httpStatus.BAD_REQUEST
-      )
-    );
-
-  // if (!job.deliveryPartnerImageVerification)
-  //   return next(
-  //     new ErrorHandler("Please verify your image first", httpStatus.BAD_REQUEST)
-  //   );
 
   const dropOff = job.dropOffs.id(dropOffId);
 
-  // Step 2: Upload image and on the way to drop off
-  if (dropOff.dropOffStatus === 1 && pickupImage)
-    dropOff.pickupImage = pickupImage;
+  if (!dropOff)
+    return next(new ErrorHandler("Dropoff not found", httpStatus.NOT_FOUND));
 
   // Step 1: On the way to pickup (General case to change the drop off status)
-  // Step 3: Change the drop off status to COMPLETED(3) when the driver arrived on the drop off location
-  if (dropOffStatus) {
-    if (dropOffStatus === 1)
-      message = "You are on the way to pickup the order.";
-
-    if (dropOffStatus === 2) {
-      message = "You are on the way to deliver the order.";
-    }
-
-    if (dropOffStatus === 3) {
-      message = "You arrived on the drop off location.";
-    }
-
+  if (dropOffStatus == 1) {
     dropOff.dropOffStatus = dropOffStatus;
+    message = "You are on the way to pickup the order.";
   }
 
-  // Step 4: Upload image and complete the drop off
-  if (dropOffImage || dropOffPoint || dropOffDetails) {
-    dropOff.dropOffImage = dropOffImage;
-    dropOff.dropOffPoint = dropOffPoint;
-    dropOff.dropOffDetails = dropOffDetails;
+  // Step 2: Upload image and on the way to drop off
+  if (dropOffStatus == 2 && images?.pickupImage) {
+    if (dropOff.dropOffStatus != 1) {
+      return next(
+        new ErrorHandler("Pickup is not initiated yet.", httpStatus.BAD_REQUEST)
+      );
+    }
+    dropOff.pickupImage = images?.pickupImage;
+    dropOff.dropOffStatus = dropOffStatus; // Update status to ON_THE_WAY_TO_PICKUP(2)
+    message = "Pickup image uploaded successfully";
+  }
 
-    message = "Drop off details are submitted successfully";
+  // Step 3: Change the drop off status to COMPLETED(3) when the driver arrived on the drop off location
+  // Step 4: Upload image and complete the drop off
+  if (dropOffStatus == 3) {
+    // If arrived at dropOff location
+
+    if (dropOff.dropOffStatus != 2)
+      return next(
+        new ErrorHandler(
+          "DropOff is not completed yet.",
+          httpStatus.BAD_REQUEST
+        )
+      );
+
+    if (images || dropOffPoint || dropOffDetails) {
+      dropOff.dropOffStatus = dropOffStatus;
+      dropOff.dropOffImage = images?.dropOffImage;
+      dropOff.dropOffPoint = dropOffPoint;
+      dropOff.dropOffDetails = dropOffDetails;
+
+      message = "Drop off details are submitted successfully";
+    }
   }
 
   // Step 5: Finish the delivery
   if (isDeliveryCompleted) {
     const allDropOffs = job.dropOffs;
     const inCompleteDropOff = allDropOffs.find(
-      (dropOff) => dropOff.dropOffStatus !== 3
+      (dropOff) => dropOff.dropOffStatus != 3
     );
     if (inCompleteDropOff)
       return next(
@@ -323,8 +383,6 @@ const completeJob = TryCatch(async (req, res, next) => {
   }
 
   await job.save();
-
-  console.log("dropOff", dropOff);
 
   res.status(httpStatus.OK).json({
     success: true,
@@ -362,7 +420,12 @@ const giveCustomerReview = TryCatch(async (req, res, next) => {
       )
     );
 
- await Review.create({
+  if (job.deliveryStatus !== deliveryStatus.DELIVERED)
+    return next(
+      new ErrorHandler("Delivery is not completed yet", httpStatus.BAD_REQUEST)
+    );
+
+  await Review.create({
     userId,
     jobId,
     rating,
@@ -376,8 +439,89 @@ const giveCustomerReview = TryCatch(async (req, res, next) => {
   });
 });
 
+const recognizeFace = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const { jobId } = req.body;
+  const user = await getUserById(userId);
+
+  if (user.role !== userRole.DRIVER)
+    return next(
+      new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  const job = await getJobById(jobId);
+  if (!job)
+    return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
+
+  const driverImage = user.driverImage;
+
+  const faceImage = getImages(req, ["faceImage"]);
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const modelsPath = path.join(__dirname, "../public/models");
+
+  // Load models
+  await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
+  await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
+  await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
+  // console.log("enter", faceImage, driverImage);
+
+  // Read the images
+  const capturedImageBuffer = await fetchImage(faceImage);
+  const storedImageBuffer = await fetchImage(driverImage);
+
+  const capturedImage = await canvas.loadImage(capturedImageBuffer);
+  const storedImage = await canvas.loadImage(storedImageBuffer);
+
+  console.log("capturedImage storedImage", capturedImage, storedImage);
+
+  // Detect faces and compute descriptors
+  const capturedResult = await faceapi
+    .detectSingleFace(capturedImage)
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+  const storedResult = await faceapi
+    .detectSingleFace(storedImage)
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!capturedResult || !storedResult)
+    return next(
+      new ErrorHandler(
+        "Unable to detect faces in one or both images.",
+        httpStatus.BAD_REQUEST
+      )
+    );
+
+  const distance = faceapi.euclideanDistance(
+    capturedResult.descriptor,
+    storedResult.descriptor
+  );
+
+  console.log("distance:::", distance);
+
+  const threshold = 0.6;
+  if (distance < threshold) {
+
+    job.deliveryPartnerImageVerification = true;
+    await job.save();
+    
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: "User validated successfully",
+    });
+  } else {
+    res.status(httpStatus.BAD_REQUEST).json({
+      success: false,
+      message: "User not validated",
+    });
+  }
+});
+
 export const jobController = {
   createJob,
+  searchByLocation,
   getJobDetails,
   getJobsByFilters,
   getAllJobsOfCustomer,
@@ -386,5 +530,6 @@ export const jobController = {
   getJobApplications,
   selectJobDriver,
   completeJob,
-  giveCustomerReview
+  giveCustomerReview,
+  recognizeFace,
 };

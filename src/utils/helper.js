@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import otpGenerator from "otp-generator";
 import nodemailer from "nodemailer";
 import twilio from "twilio";
+import ErrorHandler from "./ErrorHandler.js";
 
 export const connectToDB = async () => {
   try {
@@ -17,22 +18,42 @@ export const TryCatch = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+const removeEmptyValues = (obj) => {
+  const newObj = {};
+  for (const key in obj) {
+    if (typeof obj[key] === "object" && obj[key] !== null) {
+      if (Array.isArray(obj[key])) {
+        newObj[key] = obj[key].filter((value) => value !== null);
+      } else {
+        newObj[key] = removeEmptyValues(obj[key]);
+      }
+    } else if (obj[key] !== "" && obj[key] !== null) {
+      newObj[key] = obj[key];
+    }
+  }
+  return newObj;
+};
+
 export const validate = (schema) =>
   TryCatch(async (req, res, next) => {
     let errorMessage = "";
     let validationErrors = [];
+
+    req.body = removeEmptyValues(req.body);
+    req.query = removeEmptyValues(req.query);
+    req.params = removeEmptyValues(req.params);
 
     if (schema.body) {
       const result = schema.body.validate(req.body, { abortEarly: false });
       errorMessage = result?.error?.details[0].message;
       validationErrors = result?.error?.details.map((error) => error.message);
     }
-    if (schema.query) {
+    if (schema.query && !validationErrors.length) {
       const result = schema.query.validate(req.query, { abortEarly: false });
       errorMessage = result?.error?.details[0].message;
       validationErrors = result?.error?.details.map((error) => error.message);
     }
-    if (schema.params) {
+    if (schema.params && !validationErrors.length) {
       const result = schema.params.validate(req.params, { abortEarly: false });
       errorMessage = result?.error?.details[0].message;
       validationErrors = result?.error?.details.map((error) => error.message);
@@ -105,6 +126,22 @@ export const sendOTPOnPhone = async (body, receiverPhone = "") => {
   });
 
   console.log(message.sid);
+};
 
-  return OTP;
+export const getImages = (req, images) => {
+  if (images.length === 1 && req.file) {
+    return process.env.BACKEND_URL + "uploads/" + req.file.filename;
+  }
+
+  if (req.files) {
+    return images.reduce((acc, image) => {
+      if (req.files[image] !== undefined) {
+        acc[image] =
+          process.env.BACKEND_URL + "uploads/" + req.files[image][0].filename;
+      }
+      return acc;
+    }, {});
+  }
+
+  throw new ErrorHandler("Images not found", 404);
 };

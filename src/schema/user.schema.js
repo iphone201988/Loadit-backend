@@ -1,5 +1,10 @@
 import Joi from "joi";
-import { addressType, userRole, vehicleType } from "../utils/enums/enums.js";
+import {
+  addressType,
+  deviceType,
+  userRole,
+  vehicleType,
+} from "../utils/enums/enums.js";
 
 const registerUserValidation = {
   body: Joi.object({
@@ -10,6 +15,10 @@ const registerUserValidation = {
       zipCode: Joi.string().required(),
     }),
     password: Joi.string().required(),
+    deviceType: Joi.number()
+      .valid(deviceType.ANDROID, deviceType.IOS)
+      .required(),
+    deviceToken: Joi.string().required(),
   }).or("phone", "email"),
 };
 
@@ -27,17 +36,7 @@ const completeProfileValidation = {
         then: Joi.required(),
         otherwise: Joi.optional(),
       }),
-    driverImage: Joi.string().when("role", {
-      is: 1,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
     drivingLicenseNumber: Joi.string().when("role", {
-      is: 1,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
-    drivingLicenseImage: Joi.string().when("role", {
       is: 1,
       then: Joi.required(),
       otherwise: Joi.optional(),
@@ -48,11 +47,6 @@ const completeProfileValidation = {
       otherwise: Joi.optional(),
     }),
     carInsuranceNumberExpDate: Joi.date().when("role", {
-      is: 1,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
-    carInsuranceImage: Joi.string().when("role", {
       is: 1,
       then: Joi.required(),
       otherwise: Joi.optional(),
@@ -85,11 +79,6 @@ const completeProfileValidation = {
         then: Joi.required(),
         otherwise: Joi.optional(),
       }),
-    vehicleImage: Joi.string().when("role", {
-      is: 1,
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
   }),
 };
 
@@ -98,6 +87,10 @@ const loginUserValidation = {
     email: Joi.string().email().optional(),
     phone: Joi.number().optional(),
     password: Joi.string().required(),
+    deviceType: Joi.number()
+      .valid(deviceType.ANDROID, deviceType.IOS)
+      .required(),
+    deviceToken: Joi.string().required(),
   }).or("phone", "email"),
 };
 
@@ -129,9 +122,39 @@ const resetPasswordValidation = {
   }),
 };
 
-const resendOTPValidation = {
+const updateUserProfileValidation = {
   body: Joi.object({
-    userId: Joi.string().required(),
+    email: Joi.string().optional(),
+    phone: Joi.string().optional(),
+    state: Joi.string().optional(),
+    zipCode: Joi.string().optional(),
+  }),
+};
+
+const userDocumentsValidation = {
+  body: Joi.object({
+    dob: Joi.date().optional(),
+    state: Joi.string().optional(),
+    drivingLicenseNumber: Joi.string().optional(),
+    carInsuranceNumber: Joi.string().optional(),
+    carInsuranceNumberExpDate: Joi.date().optional(),
+    socialSecurityNumber: Joi.string().optional(),
+    vehicleNumber: Joi.string().optional(),
+    licensePlate: Joi.string().optional(),
+  }),
+};
+
+const userVehicleInformationValidation = {
+  body: Joi.object({
+    vehicleType: Joi.number()
+      .valid(
+        vehicleType.BOX_TRUCK,
+        vehicleType.CAR,
+        vehicleType.SMALL_TRUCK,
+        vehicleType.MINI_VAN,
+        vehicleType.SPRINTER_VAN
+      )
+      .optional(),
   }),
 };
 
@@ -143,5 +166,7 @@ export default {
   changePasswordValidation,
   verifyOTPValidation,
   resetPasswordValidation,
-  resendOTPValidation,
+  updateUserProfileValidation,
+  userDocumentsValidation,
+  userVehicleInformationValidation,
 };

@@ -4,6 +4,7 @@ import userSchema from "../schema/user.schema.js";
 import { validate } from "../utils/helper.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authenticationMiddleware } from "../middlewares/auth.middleware.js";
+import { validateFiles } from "../middlewares/validateFiles.middleware.js";
 
 const userRoutes = express.Router();
 
@@ -29,12 +30,6 @@ userRoutes.post(
   "/verifyOTP",
   validate(userSchema.verifyOTPValidation),
   userController.verifyOTP
-);
-
-userRoutes.post(
-  "/resendOTP",
-  validate(userSchema.resendOTPValidation),
-  userController.resendOTP
 );
 
 userRoutes.post(
@@ -64,6 +59,18 @@ userRoutes.post(
 
 userRoutes.put(
   "/completeProfile",
+  upload.fields([
+    { name: "driverImage", maxCount: 1 },
+    { name: "drivingLicenseImage", maxCount: 1 },
+    { name: "carInsuranceImage", maxCount: 1 },
+    { name: "vehicleImage", maxCount: 1 },
+  ]),
+  validateFiles([
+    "driverImage",
+    "drivingLicenseImage",
+    "carInsuranceImage",
+    "vehicleImage",
+  ]),
   validate(userSchema.completeProfileValidation),
   userController.completeProfile
 );
@@ -72,6 +79,33 @@ userRoutes.post(
   "/logoutUser",
   authenticationMiddleware,
   userController.logoutUser
+);
+
+userRoutes.put(
+  "/updateUserProfile",
+  authenticationMiddleware,
+  upload.single("driverImage"),
+  validate(userSchema.updateUserProfileValidation),
+  userController.updateUserProfile
+);
+
+userRoutes.put(
+  "/updateUserDocuments",
+  authenticationMiddleware,
+  upload.fields([
+    { name: "drivingLicenseImage", maxCount: 1 },
+    { name: "carInsuranceImage", maxCount: 1 },
+  ]),
+  validate(userSchema.userDocumentsValidation),
+  userController.updateUserDocuments
+);
+
+userRoutes.put(
+  "/updateUserVehicleInformation",
+  authenticationMiddleware,
+  upload.single("vehicleImage"),
+  validate(userSchema.userVehicleInformationValidation),
+  userController.updateUserVehicleInformation
 );
 
 export default userRoutes;

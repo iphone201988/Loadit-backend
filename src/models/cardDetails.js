@@ -26,4 +26,4 @@ const BankCardSchema = new Schema({
 },{timestamps:true});
 
 // Create the Model from the Schema
-export const UserBankCardDeTail = mongoose.model('UserBankCardDetail', BankCardSchema, "UserBankCardDetail");
+export const UserBankCardDetail = mongoose.model('UserBankCardDetail', BankCardSchema, "UserBankCardDetail");

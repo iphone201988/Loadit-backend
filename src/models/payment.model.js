@@ -1,16 +1,25 @@
+import { Schema, model } from "mongoose";
+import { transactionType } from "../utils/enums/enums.js";
 
-
-const mongoose = require('mongoose');
-
-const paymentSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+const paymentSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    jobId: { type: Schema.Types.ObjectId, ref: "Job" },
+    cardId: { type: String },
+    transferId: { type: String },
     amount: { type: Number, required: true },
-    paymentDate: { type: Date, required: true },
-    paymentReference: { type: String, required: true },
-    paymentGateway: { type: String, required: true },
-    paymentType: { type: String, required: true },
-    paymentStatus: { type: String, required: true },
-    paymentMethod: { type: String, required: true },
-    status: { type: String, required: true },
-},{timestamps:true});
+    transactionType: {
+      type: Number,
+      enum: [
+        transactionType.CUSTOMER_DEDUCTION,
+        transactionType.DRIVER_WITHDRAW,
+      ],
+    },
+    paymentIntentId: { type: String },
+    paymentTransferredStatus: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+const Payment = model("Payment", paymentSchema);
+export default Payment;

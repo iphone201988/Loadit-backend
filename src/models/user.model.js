@@ -1,9 +1,17 @@
 import mongoose from "mongoose";
-import { addressType, userRole, vehicleType } from "../utils/enums/enums.js";
+import {
+  addressType,
+  deviceType,
+  userRole,
+  vehicleType,
+} from "../utils/enums/enums.js";
 import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
+    stripeCustomerId: {
+      type: String,
+    },
     name: {
       type: String,
     },
@@ -82,6 +90,13 @@ const userSchema = new mongoose.Schema(
     otpExpiry: {
       type: String,
     },
+    deviceToken: {
+      type: String,
+    },
+    deviceType: {
+      type: Number,
+      enum: [deviceType.ANDROID, deviceType.IOS],
+    },
   },
   {
     timestamps: true,
@@ -107,7 +122,7 @@ userSchema.methods.matchPassword = async function (password) {
 };
 
 userSchema.methods.matchOTP = async function (otp) {
-  if(!this.otp) return false;
+  if (!this.otp) return false;
   const isCompared = await bcrypt.compare(otp, this.otp);
   return isCompared;
 };

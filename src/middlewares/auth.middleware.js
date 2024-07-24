@@ -15,18 +15,20 @@ export const authenticationMiddleware = TryCatch(async (req, res, next) => {
     );
 
   const token = authHeader.split(" ")[1];
-  const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  const decode = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-  if (!user)
+  if (!decode)
     return next(new ErrorHandler("Invalid token", httpStatus.BAD_REQUEST));
 
-  const { id } = user;
-  const userObject = await getUserById(id);
+  const user = await getUserById(decode.id);
 
   if (!user)
     return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
 
-  req.userId = userObject._id;
-  req.token = token;
+  if (decode.jti !== user.jti)
+    return next(new ErrorHandler("Unauthorized", httpStatus.UNAUTHORIZED));
+
+  req.userId = user._id;
+  // req.token = token;
   next();
 });

@@ -3,6 +3,8 @@ import { jobController } from "../controllers/job.controller.js";
 import { authenticationMiddleware } from "../middlewares/auth.middleware.js";
 import jobSchema from "../schema/job.schema.js";
 import { validate } from "../utils/helper.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import { validateFiles } from "../middlewares/validateFiles.middleware.js";
 
 const router = express.Router();
 
@@ -11,6 +13,13 @@ router.post(
   authenticationMiddleware,
   validate(jobSchema.createJobValidation),
   jobController.createJob
+);
+
+router.get(
+  "/search",
+  authenticationMiddleware,
+  validate(jobSchema.searchByLocationValidation),
+  jobController.searchByLocation
 );
 
 router.get(
@@ -40,7 +49,7 @@ router.get(
 );
 
 router.put(
-  "/applyForJob/:jobId",
+  "/applyForJob",
   authenticationMiddleware,
   validate(jobSchema.applyJobValidation),
   jobController.applyForJob
@@ -63,8 +72,28 @@ router.put(
 router.put(
   "/completeJob",
   authenticationMiddleware,
+  upload.fields([
+    { name: "pickupImage", maxCount: 1 },
+    { name: "dropOffImage", maxCount: 1 },
+  ]),
   validate(jobSchema.completeJobValidation),
   jobController.completeJob
+);
+
+router.post(
+  "/customerReview",
+  authenticationMiddleware,
+  validate(jobSchema.giveCustomerReviewValidation),
+  jobController.giveCustomerReview
+);
+
+router.post(
+  "/recognizeFace",
+  authenticationMiddleware,
+  upload.single("faceImage"),
+  validateFiles(["faceImage"]),
+  validate(jobSchema.recognizeFaceValidation),
+  jobController.recognizeFace
 );
 
 export default router;

@@ -7,9 +7,13 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 import ErrorHandler from "./src/utils/ErrorHandler.js";
+import EventEmitter from "events";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const myEmitter = new EventEmitter();
+myEmitter.setMaxListeners(0);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

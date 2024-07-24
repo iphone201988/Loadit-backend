@@ -45,6 +45,12 @@ const createJobValidation = {
   }),
 };
 
+const searchByLocationValidation = {
+  query: Joi.object({
+    location: Joi.string().required(),
+  }),
+};
+
 const getJobDetailsValidation = {
   params: Joi.object({
     jobId: Joi.string().required(),
@@ -73,7 +79,7 @@ const getJobApplicationsValidation = {
 const selectJobDriverValidation = {
   body: Joi.object({
     jobId: Joi.string().required(),
-    userId: Joi.string().required(),
+    driverId: Joi.string().required(),
   }),
 };
 
@@ -88,8 +94,8 @@ const completeJobValidation = {
         dropOffStatus.COMPLETED
       )
       .optional(),
-    pickupImage: Joi.string().optional(),
-    dropOffImage: Joi.string().optional(),
+    // pickupImage: Joi.string().optional(),
+    // dropOffImage: Joi.string().optional(),
     dropOffPoint: Joi.number()
       .valid(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
       .optional(),
@@ -98,12 +104,29 @@ const completeJobValidation = {
   }),
 };
 
+const giveCustomerReviewValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required(),
+    review: Joi.string().required(),
+    rating: Joi.number().min(1).max(5).required(),
+  }),
+};
+
+const recognizeFaceValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required(),
+  }),
+};
+
 export default {
   createJobValidation,
+  searchByLocationValidation,
   getJobDetailsValidation,
   getJobsByFiltersValidation,
   applyJobValidation,
   getJobApplicationsValidation,
   selectJobDriverValidation,
   completeJobValidation,
+  giveCustomerReviewValidation,
+  recognizeFaceValidation
 };
