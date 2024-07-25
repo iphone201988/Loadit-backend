@@ -459,6 +459,14 @@ const updateDeliveryStatus = TryCatch(async (req, res, next) => {
       )
     );
 
+  if (!job.deliveryPartnerImageVerification)
+    return next(
+      new ErrorHandler(
+        "Please verify your identity first",
+        httpStatus.BAD_REQUEST
+      )
+    );
+
   if (dropOffStatus) {
     dropOff.dropOffStatus = dropOffStatus;
     job.deliveryStatus = deliveryStatus.IN_PROGRESS;
@@ -487,14 +495,7 @@ const updateDeliveryStatus = TryCatch(async (req, res, next) => {
 });
 
 const updateDropOffStatus = TryCatch(async (req, res, next) => {
-  const {
-    dropOffId,
-    dropOffStatus,
-    pickupImage,
-    dropOffImage,
-    dropOffPoint,
-    dropOffDetails,
-  } = req.body;
+  const { dropOffId, dropOffStatus, dropOffPoint, dropOffDetails } = req.body;
 
   const { jobId } = req.params;
   const { userId } = req;
@@ -611,7 +612,7 @@ const giveCustomerReview = TryCatch(async (req, res, next) => {
 });
 
 const recognizeFace = TryCatch(async (req, res, next) => {
-  console.log("enter in the api")
+  console.log("enter in the api");
   const { userId } = req;
   const { jobId } = req.body;
   const user = await getUserById(userId);
