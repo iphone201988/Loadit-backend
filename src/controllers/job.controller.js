@@ -629,7 +629,7 @@ const recognizeFace = TryCatch(async (req, res, next) => {
 
   const faceImage = getImages(req, ["faceImage"]);
 
-  // console.log("enter", faceImage, driverImage);
+  console.log("enter", faceImage, driverImage);
 
   // Read the images
   const capturedImageBuffer = await fetchImage(faceImage);
