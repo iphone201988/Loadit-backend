@@ -611,6 +611,7 @@ const giveCustomerReview = TryCatch(async (req, res, next) => {
 });
 
 const recognizeFace = TryCatch(async (req, res, next) => {
+  console.log("enter in the api")
   const { userId } = req;
   const { jobId } = req.body;
   const user = await getUserById(userId);
