@@ -21,6 +21,20 @@ import canvas from "canvas";
 const { Canvas, Image, ImageData } = canvas;
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const modelsPath = path.join(__dirname, "../public/models");
+
+// Load models
+const loadModels = async () => {
+  await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
+  await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
+  await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
+};
+
+// Load models once at startup
+loadModels();
+
 const createJob = TryCatch(async (req, res, next) => {
   const { userId } = req;
   const {
@@ -170,23 +184,42 @@ const getAvailableJobsForDriver = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
 
-  const currentDate = moment().startOf("day");
-  const currentTime = moment().format("HH:mm");
+  const currentDate = moment().format("YYYY-MM-DD"); // Current date in YYYY-MM-DD format
+  const currentTime = moment().format("HH:mm"); // Current time in HH:mm format
 
   const jobs = await Job.find({
     $and: [
-      { dropOffDate: { $gte: currentDate.toDate() } },
-      { dropOffTime: { $gt: currentTime } },
+      {
+        $or: [
+          { dropOffDate: { $gt: currentDate } }, // Future dates
+          {
+            $and: [
+              { dropOffDate: currentDate }, // Today
+              { dropOffTime: { $gte: currentTime } }, // Times later today
+            ],
+          },
+        ],
+      },
       { deliveryPartner: { $exists: false } },
       { deliveryStatus: { $exists: false } },
     ],
-  }).populate("userId", "name");
+  })
+    .populate("userId", "name")
+    .lean();
 
-  // Check if the driver already applied for the job
+  // Checking if the driver has applied any specific job
+  const data = jobs.map((job) => {
+    if (job?.apply.includes(userId)) {
+      job.applied = true;
+    } else {
+      job.applied = false;
+    }
+    return job;
+  });
 
   res.status(httpStatus.OK).json({
     success: true,
-    jobs,
+    jobs: data,
   });
 });
 
@@ -284,6 +317,7 @@ const selectJobDriver = TryCatch(async (req, res, next) => {
       )
     );
   job.deliveryPartner = driverId;
+  job.deliveryStatus = deliveryStatus.IN_PROGRESS;
   await job.save();
 
   // TODO:
@@ -400,6 +434,133 @@ const completeJob = TryCatch(async (req, res, next) => {
   });
 });
 
+const updateDeliveryStatus = TryCatch(async (req, res, next) => {
+  const { dropOffId, dropOffStatus, isDeliveryCompleted } = req.body;
+  const { jobId } = req.params;
+  const { userId } = req;
+  const user = await getUserById(userId);
+
+  if (user.role != userRole.DRIVER)
+    return next(new ErrorHandler("User is not driver", httpStatus.BAD_REQUEST));
+
+  const job = await getJobById(jobId);
+  if (!job)
+    return next(new ErrorHandler("Job not found", httpStatus.BAD_REQUEST));
+
+  const dropOff = job.dropOffs.id(dropOffId);
+  if (!dropOff)
+    return next(new ErrorHandler("Drop Off not found", httpStatus.BAD_REQUEST));
+
+  if (!dropOffStatus && !isDeliveryCompleted)
+    return next(
+      new ErrorHandler(
+        "Please provide delivery status to update.",
+        httpStatus.BAD_REQUEST
+      )
+    );
+
+  if (dropOffStatus) {
+    dropOff.dropOffStatus = dropOffStatus;
+    job.deliveryStatus = deliveryStatus.IN_PROGRESS;
+  }
+
+  if (isDeliveryCompleted) {
+    const allDropOffs = job.dropOffs;
+    const inCompleteDropOff = allDropOffs.find(
+      (dropOff) => dropOff.dropOffStatus != 3
+    );
+
+    if (inCompleteDropOff)
+      return next(
+        new ErrorHandler("Please complete all dropoffs", httpStatus.BAD_REQUEST)
+      );
+    job.deliveryStatus = deliveryStatus.DELIVERED;
+  }
+
+  await Promise.all([job.save(), dropOff.save()]);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "Drop Off status updated successfully",
+    job,
+  });
+});
+
+const updateDropOffStatus = TryCatch(async (req, res, next) => {
+  const {
+    dropOffId,
+    dropOffStatus,
+    pickupImage,
+    dropOffImage,
+    dropOffPoint,
+    dropOffDetails,
+  } = req.body;
+
+  const { jobId } = req.params;
+  const { userId } = req;
+
+  const user = await getUserById(userId);
+
+  if (user.role != userRole.DRIVER)
+    return next(new ErrorHandler("User is not driver", httpStatus.BAD_REQUEST));
+
+  const job = await getJobById(jobId);
+  if (!job)
+    return next(new ErrorHandler("Job not found", httpStatus.BAD_REQUEST));
+
+  const dropOff = job.dropOffs.id(dropOffId);
+  if (!dropOff)
+    return next(new ErrorHandler("Drop Off not found", httpStatus.BAD_REQUEST));
+
+  const images = getImages(req, ["pickupImage", "dropOffImage"]);
+
+  if (dropOffStatus == 2) {
+    if (dropOff.dropOffStatus == 3) {
+      return next(
+        new ErrorHandler("Dropff already completed", httpStatus.BAD_REQUEST)
+      );
+    }
+
+    if (!images || !images?.pickupImage) {
+      return next(
+        new ErrorHandler("Pickup image is required", httpStatus.BAD_REQUEST)
+      );
+    }
+    dropOff.dropOffStatus = dropOffStatus;
+    dropOff.pickupImage = images.pickupImage;
+  }
+
+  if (dropOffStatus == 3) {
+    if (dropOff.dropOffStatus == 1)
+      return next(
+        new ErrorHandler(
+          "Dropoff is not initiated yet.",
+          httpStatus.BAD_REQUEST
+        )
+      );
+
+    if ((!images || !images?.dropOffImage) && !dropOffPoint) {
+      return next(
+        new ErrorHandler(
+          "Drop off details are required",
+          httpStatus.BAD_REQUEST
+        )
+      );
+    }
+    dropOff.dropOffStatus = dropOffStatus;
+    dropOff.dropOffImage = images.dropOffImage;
+    dropOff.dropOffPoint = dropOffPoint;
+    if (dropOffDetails) dropOff.dropOffDetails = dropOffDetails;
+  }
+
+  await job.save();
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "Drop off updated successfully",
+  });
+});
+
 const giveCustomerReview = TryCatch(async (req, res, next) => {
   const { userId } = req;
   const { jobId, review, rating } = req.body;
@@ -467,14 +628,6 @@ const recognizeFace = TryCatch(async (req, res, next) => {
 
   const faceImage = getImages(req, ["faceImage"]);
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const modelsPath = path.join(__dirname, "../public/models");
-
-  // Load models
-  await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
-  await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
-  await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
   // console.log("enter", faceImage, driverImage);
 
   // Read the images
@@ -538,17 +691,13 @@ const quitJob = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
     );
 
-  const job = await Job.findById(jobId);
+  const job = await Job.findOne({
+    _id: jobId,
+    deliveryStatus: deliveryStatus.IN_PROGRESS,
+    deliveryPartner: userId,
+  });
   if (!job)
     return next(new ErrorHandler("Job not found", httpStatus.NOT_FOUND));
-
-  if (job.deliveryPartner.toString() !== userId.toString())
-    return next(
-      new ErrorHandler(
-        "You are not assigned to this job",
-        httpStatus.BAD_REQUEST
-      )
-    );
 
   job.isJobQuit.push({ driverId: userId, reason });
   job.deliveryPartner = undefined;
@@ -576,4 +725,6 @@ export const jobController = {
   giveCustomerReview,
   recognizeFace,
   quitJob,
+  updateDeliveryStatus,
+  updateDropOffStatus,
 };

@@ -87,6 +87,24 @@ router.put(
   jobController.quitJob
 );
 
+router.put(
+  "/updateDeliveryStatus/:jobId",
+  authenticationMiddleware,
+  validate(jobSchema.updateDeliveryStatusValidation),
+  jobController.updateDeliveryStatus
+);
+
+router.put(
+  "/updateDropOffStatus/:jobId",
+  authenticationMiddleware,
+  upload.fields([
+    { name: "pickupImage", maxCount: 1 },
+    { name: "dropOffImage", maxCount: 1 },
+  ]),
+  validate(jobSchema.updateDropOffStatusValidation),
+  jobController.updateDropOffStatus
+);
+
 router.post(
   "/customerReview",
   authenticationMiddleware,

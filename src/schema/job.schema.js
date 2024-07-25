@@ -195,6 +195,66 @@ const quitJobValidation = {
   }),
 };
 
+const updateDropOffStatusValidation = {
+  params: Joi.object({
+    jobId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        "string.base": "Job Id should be a type of text",
+        "string.empty": "Job Id cannot be empty",
+        "string.pattern.base": "Job Id must be a valid ObjectId",
+        "any.required": "JobId is required",
+      }),
+  }),
+  body: Joi.object({
+    dropOffId: Joi.string().required().messages({
+      "any.required": "Dropoff ID is required",
+    }),
+    dropOffStatus: Joi.number()
+      .required()
+      .valid(dropOffStatus.ON_THE_WAY_TO_DROPOFF, dropOffStatus.COMPLETED)
+      .messages({
+        "any.required": "Dropoff status is required",
+        "any.only": "Invalid job type",
+      }),
+    dropOffPoint: Joi.number()
+      .valid(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+      .when("dropOffStatus", {
+        is: 3,
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+      })
+      .messages({
+        "any.required": "Dropoff point is required",
+        "any.only": "Invalid dropoff status",
+      }),
+    dropOffDetails: Joi.string().optional().messages({
+      "string.base": "Dropoff details must be a string",
+    }),
+  }),
+};
+
+const updateDeliveryStatusValidation = {
+  params: Joi.object({
+    jobId: Joi.string().required().messages({
+      "any.required": "Job ID is required",
+    }),
+  }),
+  body: Joi.object({
+    dropOffId: Joi.string().required().messages({
+      "any.required": "Dropoff ID is required",
+    }),
+    dropOffStatus: Joi.number().optional().valid(1).messages({
+      "any.only": "Invalid dropoff status",
+      "number.base": "Dropoff status must be a number",
+    }),
+    isDeliveryCompleted: Joi.boolean().optional().messages({
+      "boolean.base": "Delivery status must be boolean",
+    }),
+  }),
+};
+
 export default {
   createJobValidation,
   searchByLocationValidation,
@@ -207,4 +267,6 @@ export default {
   giveCustomerReviewValidation,
   recognizeFaceValidation,
   quitJobValidation,
+  updateDropOffStatusValidation,
+  updateDeliveryStatusValidation,
 };

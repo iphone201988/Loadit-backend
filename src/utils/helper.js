@@ -43,18 +43,19 @@ export const validate = (schema) =>
     req.query = removeEmptyValues(req.query);
     req.params = removeEmptyValues(req.params);
 
-    if (schema.body) {
-      const result = schema.body.validate(req.body, { abortEarly: false });
-      errorMessage = result?.error?.details[0].message;
-      validationErrors = result?.error?.details.map((error) => error.message);
-    }
-    if (schema.query && !validationErrors.length) {
+    if (schema.query) {
       const result = schema.query.validate(req.query, { abortEarly: false });
       errorMessage = result?.error?.details[0].message;
       validationErrors = result?.error?.details.map((error) => error.message);
     }
-    if (schema.params && !validationErrors.length) {
+    if (schema.params && !validationErrors?.length) {
       const result = schema.params.validate(req.params, { abortEarly: false });
+      errorMessage = result?.error?.details[0].message;
+      validationErrors = result?.error?.details.map((error) => error.message);
+    }
+
+    if (schema.body && !validationErrors?.length) {
+      const result = schema.body.validate(req.body, { abortEarly: false });
       errorMessage = result?.error?.details[0].message;
       validationErrors = result?.error?.details.map((error) => error.message);
     }
