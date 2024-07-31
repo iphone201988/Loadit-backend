@@ -138,12 +138,11 @@ const login = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
 
   if (!user?.role)
-    return next(
-      new ErrorHandler(
-        "Please complete your registration",
-        httpStatus.FORBIDDEN
-      )
-    );
+    return res.status(httpStatus.FORBIDDEN).json({
+      success: false,
+      messages: "Please complete your registration.",
+      userId: user._id,
+    });
 
   const isMatched = await user.matchPassword(password);
   if (!isMatched)
