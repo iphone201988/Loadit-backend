@@ -141,11 +141,9 @@ const login = TryCatch(async (req, res, next) => {
     return next(
       new ErrorHandler(
         "Please complete your registration",
-        httpStatus.BAD_REQUEST
+        httpStatus.FORBIDDEN
       )
     );
-
-
 
   const isMatched = await user.matchPassword(password);
   if (!isMatched)
