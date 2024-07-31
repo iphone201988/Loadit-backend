@@ -134,7 +134,10 @@ const login = TryCatch(async (req, res, next) => {
   if (email) user = await User.findOne({ email });
   if (phone) user = await User.findOne({ phone });
 
-  if (!user.role)
+  if (!user)
+    return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
+
+  if (!user?.role)
     return next(
       new ErrorHandler(
         "Please complete your registration",
@@ -142,8 +145,7 @@ const login = TryCatch(async (req, res, next) => {
       )
     );
 
-  if (!user)
-    return next(new ErrorHandler("Invalid email", httpStatus.BAD_REQUEST));
+
 
   const isMatched = await user.matchPassword(password);
   if (!isMatched)
