@@ -6,6 +6,8 @@ import User from "../models/user.model.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
 import { getUserById } from "../services/user.services.js";
 import {
+  calculatePrice,
+  calculateTotalDistance,
   fetchImage,
   getFilteredJobs,
   getJobById,
@@ -55,6 +57,14 @@ const createJob = TryCatch(async (req, res, next) => {
       new ErrorHandler("User is not a customer", httpStatus.BAD_REQUEST)
     );
 
+  if (!user.stripeCustomerId || !user.isStripeAccountConnected)
+    return next(
+      new ErrorHandler(
+        "Please add your bank details first",
+        httpStatus.BAD_REQUEST
+      )
+    );
+
   if (jobType == 1 && dropOffs.length > 1) {
     return next(
       new ErrorHandler(
@@ -75,6 +85,18 @@ const createJob = TryCatch(async (req, res, next) => {
       )
     );
 
+  // Getting all the dropOff locations to find total distance
+  const allDropOffLocations = dropOffs.map(
+    (dropOff) => dropOff.dropOffLocation
+  );
+
+  const distance = await calculateTotalDistance(
+    pickUpLocation,
+    allDropOffLocations
+  );
+
+  const price = calculatePrice(distance);
+
   const job = await Job.create({
     title,
     userId,
@@ -85,9 +107,10 @@ const createJob = TryCatch(async (req, res, next) => {
     dropOffTime,
     dropOffs,
     jobType,
+    amount: price,
+    distance,
   });
 
-  // const user = await User.findById(job.userId);
   res.status(httpStatus.CREATED).json({
     success: true,
     message: "Job created successfully",
@@ -225,12 +248,20 @@ const getAvailableJobsForDriver = TryCatch(async (req, res, next) => {
 
 const applyForJob = TryCatch(async (req, res, next) => {
   const { userId } = req;
-  const { jobId } = req.body;
+  const { jobId } = req.params;
 
   const user = await User.findById(userId);
   if (user.role !== userRole.DRIVER)
     return next(
       new ErrorHandler("User is not a driver", httpStatus.BAD_REQUEST)
+    );
+
+  if (!user.stripeCustomerId || !user.isStripeAccountConnected)
+    return next(
+      new ErrorHandler(
+        "Please add your bank details first",
+        httpStatus.BAD_REQUEST
+      )
     );
 
   const job = await Job.findById(jobId);
@@ -482,6 +513,9 @@ const updateDeliveryStatus = TryCatch(async (req, res, next) => {
       return next(
         new ErrorHandler("Please complete all dropoffs", httpStatus.BAD_REQUEST)
       );
+
+    // Deduct amount from customer and transfer to driver
+
     job.deliveryStatus = deliveryStatus.DELIVERED;
   }
 
@@ -612,7 +646,6 @@ const giveCustomerReview = TryCatch(async (req, res, next) => {
 });
 
 const recognizeFace = TryCatch(async (req, res, next) => {
-  console.log("enter in the api");
   const { userId } = req;
   const { jobId } = req.body;
   const user = await getUserById(userId);

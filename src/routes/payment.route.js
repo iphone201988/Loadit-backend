@@ -58,4 +58,16 @@ router.post(
   paymentController.withdrawMoney
 );
 
+router.get("/account/refresh", (req, res) => {
+  res.send("Account verification failed");
+});
+router.get("/account/success/", paymentController.accountSuccess);
+
+router.post(
+  "/deductAndTransferPayment/:jobId",
+  authenticationMiddleware,
+  validate(paymentSchema.deductAndTransferPaymentValidation),
+  paymentController.deductAndTransferPayment
+);
+
 export default router;

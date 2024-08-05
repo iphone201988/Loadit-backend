@@ -76,7 +76,9 @@ const jobSchema = new Schema(
     },
     amount: {
       type: Number,
-      default: 40,
+    },
+    distance: {
+      type: Number,
     },
     isAmountDeducted: {
       type: Boolean,

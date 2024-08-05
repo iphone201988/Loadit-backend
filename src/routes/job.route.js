@@ -49,7 +49,7 @@ router.get(
 );
 
 router.put(
-  "/applyForJob",
+  "/applyForJob/:jobId",
   authenticationMiddleware,
   validate(jobSchema.applyJobValidation),
   jobController.applyForJob

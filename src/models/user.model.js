@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   addressType,
+  cardType,
   deviceType,
   userRole,
   vehicleType,
@@ -9,9 +10,6 @@ import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
-    stripeCustomerId: {
-      type: String,
-    },
     name: {
       type: String,
     },
@@ -97,6 +95,25 @@ const userSchema = new mongoose.Schema(
       type: Number,
       enum: [deviceType.ANDROID, deviceType.IOS],
     },
+    stripeCustomerId: {
+      type: String,
+    },
+    isStripeAccountConnected: {
+      type: Boolean,
+      default: false,
+    },
+    cards: [
+      {
+        cardId: {
+          type: String,
+        },
+        cardType: {
+          type: String,
+          enum: [cardType.PRIMARY, cardType.SECONDARY],
+          default: cardType.SECONDARY,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

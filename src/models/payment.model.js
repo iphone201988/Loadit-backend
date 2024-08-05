@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { transactionType } from "../utils/enums/enums.js";
+import { paymentStatus, transactionType } from "../utils/enums/enums.js";
 
 const paymentSchema = new Schema(
   {
@@ -12,11 +12,21 @@ const paymentSchema = new Schema(
       type: Number,
       enum: [
         transactionType.CUSTOMER_DEDUCTION,
-        transactionType.DRIVER_WITHDRAW,
+        transactionType.DRIVER_TRANSFER,
+        // transactionType.DRIVER_WITHDRAW,
       ],
     },
     paymentIntentId: { type: String },
-    paymentTransferredStatus: { type: Boolean, default: false },
+    // paymentTransferredStatus: { type: Boolean, default: false },
+    isTip: { type: Boolean },
+    status: {
+      type: Number,
+      enum: [
+        paymentStatus.PENDING,
+        paymentStatus.COMPLETED,
+        paymentStatus.FAILED,
+      ],
+    },
   },
   { timestamps: true }
 );

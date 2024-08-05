@@ -16,6 +16,11 @@ export const deviceType = {
   IOS: 2,
 };
 
+export const cardType = {
+  PRIMARY: "PRIMARY",
+  SECONDARY: "SECONDARY",
+};
+
 export const addressType = {
   PERSONAL_USE: 1,
   COMPANY_USE: 2,
@@ -57,5 +62,12 @@ export const deliveryStatus = {
 
 export const transactionType = {
   CUSTOMER_DEDUCTION: 1,
-  DRIVER_WITHDRAW: 2,
+  DRIVER_TRANSFER: 2,
+  // DRIVER_WITHDRAW: 3,
+};
+
+export const paymentStatus = {
+  PENDING: 1,
+  COMPLETED: 2,
+  FAILED: 3,
 };

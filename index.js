@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import ErrorHandler from "./src/utils/ErrorHandler.js";
 import EventEmitter from "events";
+import { stripeWebhook } from "./src/webhook/stripe.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,9 +22,12 @@ const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "/src/uploads")));
 
 app.use(morgan("tiny"));
-app.use(express.json());
 
 connectToDB();
+
+// stripeWebhook(app);
+
+app.use(express.json());
 
 app.use("/api", router);
 

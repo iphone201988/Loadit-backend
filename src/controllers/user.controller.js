@@ -82,6 +82,11 @@ const completeProfile = TryCatch(async (req, res, next) => {
   if (!user)
     return next(new ErrorHandler("User not found", httpStatus.BAD_REQUEST));
 
+  if (user.role != undefined && user.role != role)
+    return next(
+      new ErrorHandler("User role is different", httpStatus.BAD_REQUEST)
+    );
+
   const jti = generateRandomJti(20);
 
   let data = {};

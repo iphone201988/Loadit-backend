@@ -100,18 +100,30 @@ const getJobsByFiltersValidation = {
 };
 
 const applyJobValidation = {
-  body: Joi.object({
-    jobId: Joi.string().required().messages({
-      "any.required": "Job ID is required",
-    }),
+  params: Joi.object({
+    jobId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        "string.base": "Job Id should be a type of text",
+        "string.empty": "Job Id cannot be empty",
+        "string.pattern.base": "Job Id must be a valid ObjectId",
+        "any.required": "JobId is required",
+      }),
   }),
 };
 
 const getJobApplicationsValidation = {
   params: Joi.object({
-    jobId: Joi.string().required().messages({
-      "any.required": "Job ID is required",
-    }),
+    jobId: Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .required()
+      .messages({
+        "string.base": "Job Id should be a type of text",
+        "string.empty": "Job Id cannot be empty",
+        "string.pattern.base": "Job Id must be a valid ObjectId",
+        "any.required": "JobId is required",
+      }),
   }),
 };
 
