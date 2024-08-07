@@ -144,8 +144,6 @@ const getJobDetails = TryCatch(async (req, res, next) => {
   const { jobId } = req.params;
   const { userId } = req;
 
-  console.log(jobId);
-
   const job = await Job.findOne({ _id: jobId, userId }).lean();
 
   if (!job)
@@ -457,6 +455,7 @@ const completeJob = TryCatch(async (req, res, next) => {
     message = "Delivery completed successfully";
   }
 
+
   await job.save();
 
   res.status(httpStatus.OK).json({
@@ -582,6 +581,7 @@ const updateDropOffStatus = TryCatch(async (req, res, next) => {
         )
       );
     }
+
     dropOff.dropOffStatus = dropOffStatus;
     dropOff.dropOffImage = images.dropOffImage;
     dropOff.dropOffPoint = dropOffPoint;

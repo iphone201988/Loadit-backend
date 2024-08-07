@@ -5,6 +5,7 @@ import { validate } from "../utils/helper.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { authenticationMiddleware } from "../middlewares/auth.middleware.js";
 import { validateFiles } from "../middlewares/validateFiles.middleware.js";
+import uploadS3 from "../middlewares/multerS3.middleware.js";
 
 const userRoutes = express.Router();
 
@@ -53,7 +54,7 @@ userRoutes.get(
 
 userRoutes.put(
   "/completeProfile",
-  upload.fields([
+  uploadS3.fields([
     { name: "driverImage", maxCount: 1 },
     { name: "drivingLicenseImage", maxCount: 1 },
     { name: "carInsuranceImage", maxCount: 1 },
@@ -78,7 +79,7 @@ userRoutes.post(
 userRoutes.put(
   "/updateUserProfile",
   authenticationMiddleware,
-  upload.single("driverImage"),
+  uploadS3.single("driverImage"),
   validate(userSchema.updateUserProfileValidation),
   userController.updateUserProfile
 );
@@ -86,7 +87,7 @@ userRoutes.put(
 userRoutes.put(
   "/updateUserDocuments",
   authenticationMiddleware,
-  upload.fields([
+  uploadS3.fields([
     { name: "drivingLicenseImage", maxCount: 1 },
     { name: "carInsuranceImage", maxCount: 1 },
   ]),
@@ -97,7 +98,7 @@ userRoutes.put(
 userRoutes.put(
   "/updateUserVehicleInformation",
   authenticationMiddleware,
-  upload.single("vehicleImage"),
+  uploadS3.single("vehicleImage"),
   validate(userSchema.userVehicleInformationValidation),
   userController.updateUserVehicleInformation
 );

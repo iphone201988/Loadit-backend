@@ -174,10 +174,11 @@ const createDriverAccount = TryCatch(async (req, res, next) => {
 
 export const giveTip = TryCatch(async (req, res, next) => {
   const { userId } = req;
-  const { jobId, amount } = req.boy;
+  const { jobId, amount } = req.body;
 
   const job = await Job.findOne({
     _id: jobId,
+    userId,
     deliveryPartner: { $exists: true },
     deliveryStatus: deliveryStatus.DELIVERED,
   });
@@ -186,6 +187,12 @@ export const giveTip = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler("Job not found", httpStatus.BAD_REQUEST));
 
   const customer = await getUserById(userId);
+
+  if (customer.role != userRole.CUSTOMER)
+    return next(
+      new ErrorHandler("User is not customer", httpStatus.BAD_REQUEST)
+    );
+
   const driver = await getUserById(job.deliveryPartner);
 
   // Deducting amount from the customer account
@@ -211,11 +218,12 @@ export const giveTip = TryCatch(async (req, res, next) => {
     amount,
     isTip: true,
     transactionType: transactionType.CUSTOMER_DEDUCTION,
-    paymentIntentId: paymentIntent.id,
+    transactionId: paymentIntent.id,
     status:
       paymentIntent.status == "succeeded"
         ? paymentStatus.COMPLETED
         : paymentStatus.FAILED,
+    transactionDate: new Date(paymentIntent.created * 1000),
   });
 
   if (paymentIntent.status == "succeeded") {
@@ -237,13 +245,17 @@ export const giveTip = TryCatch(async (req, res, next) => {
       amount,
       isTip: true,
       transferId: transfer.id,
+      transactionId: transfer.balance_transaction,
       transactionType: transactionType.DRIVER_TRANSFER,
       status: paymentStatus.COMPLETED,
+      transactionDate: new Date(transfer.created * 1000),
     });
 
     res.status(httpStatus.OK).json({
       success: true,
       message: "Payment successful",
+      paymentIntent,
+      transfer,
     });
   } else {
     res.status(httpStatus.OK).json({
@@ -311,7 +323,8 @@ const deductAndTransferPayment = TryCatch(async (req, res, next) => {
     cardId,
     amount,
     transactionType: transactionType.CUSTOMER_DEDUCTION,
-    paymentIntentId: paymentIntent.id,
+    transactionId: paymentIntent.id,
+    transactionDate: new Date(paymentIntent.created * 1000),
     status:
       paymentIntent.status == "succeeded"
         ? paymentStatus.COMPLETED
@@ -337,7 +350,9 @@ const deductAndTransferPayment = TryCatch(async (req, res, next) => {
       cardId: driverAccount.external_accounts.data[0].id,
       amount,
       transferId: transfer.id,
+      transactionId: transfer.balance_transaction,
       transactionType: transactionType.DRIVER_TRANSFER,
+      transactionDate: new Date(transfer.created),
       status: paymentStatus.COMPLETED,
     });
 
@@ -395,13 +410,13 @@ const deductPayment = TryCatch(async (req, res, next) => {
   job.isAmountDeducted = true;
   await job.save();
 
-  const payment = await Payment.create({
+  await Payment.create({
     userId,
     jobId,
     cardId,
     amount,
     transactionType,
-    paymentIntentId: paymentIntent.id,
+    transactionId: paymentIntent.id,
   });
 
   res.status(httpStatus.OK).json({
@@ -434,7 +449,7 @@ const transferAmount = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler("Job not found", httpStatus.BAD_REQUEST));
 
   const payment = await Payment.findOne({
-    paymentIntentId: paymentIntentId,
+    transactionId: paymentIntentId,
     transactionType: transactionType.CUSTOMER_DEDUCTION,
     paymentTransferredStatus: false,
   });
@@ -577,7 +592,9 @@ export const accountSuccess = TryCatch(async (req, res, next) => {
 export const getAllTransactions = TryCatch(async (req, res, next) => {
   const { userId } = req;
   const user = await getUserById(userId);
+
   const transactions = await Payment.find({ userId: userId });
+
   res.status(httpStatus.OK).json({
     success: true,
     transactions,
@@ -590,6 +607,7 @@ export default {
   getCustomerCards,
   deductPayment,
   transferAmount,
+  giveTip,
   getBalance,
   withdrawMoney,
   getDriverAccounts,

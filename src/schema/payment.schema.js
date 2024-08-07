@@ -86,10 +86,22 @@ const deductAndTransferPaymentValidation = {
   }),
 };
 
+const giveTipValidation = {
+  body: Joi.object({
+    jobId: Joi.string().required().messages({
+      "any.required": "Job ID is required",
+    }),
+    amount: Joi.number().required().messages({
+      "number.base": "Amount must be a number.",
+    }),
+  }),
+};
+
 export default {
   addCustomerCardValidation,
   deductPaymentValidation,
   transferAmountValidation,
   withdrawMoneyValidation,
   deductAndTransferPaymentValidation,
+  giveTipValidation
 };

@@ -131,14 +131,16 @@ export const sendOTPOnPhone = async (body, receiverPhone = "") => {
 
 export const getImages = (req, images) => {
   if (images.length === 1 && req.file) {
-    return process.env.BACKEND_URL + "uploads/" + req.file.filename;
+    // return process.env.BACKEND_URL + "uploads/" + req.file.filename;
+    return req.file.location;
   }
 
   if (req.files) {
     return images.reduce((acc, image) => {
       if (req.files[image] !== undefined) {
-        acc[image] =
-          process.env.BACKEND_URL + "uploads/" + req.files[image][0].filename;
+        // acc[image] =
+        //   process.env.BACKEND_URL + "uploads/" + req.files[image][0].filename;
+        acc[image] = req.files[image][0].location;
       }
       return acc;
     }, {});

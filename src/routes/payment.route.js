@@ -31,19 +31,19 @@ router.get(
   paymentController.getDriverAccounts
 );
 
-router.post(
-  "/deductPayment",
-  authenticationMiddleware,
-  validate(paymentSchema.deductPaymentValidation),
-  paymentController.deductPayment
-);
+// router.post(
+//   "/deductPayment",
+//   authenticationMiddleware,
+//   validate(paymentSchema.deductPaymentValidation),
+//   paymentController.deductPayment
+// );
 
-router.post(
-  "/transferAmount",
-  authenticationMiddleware,
-  validate(paymentSchema.transferAmountValidation),
-  paymentController.transferAmount
-);
+// router.post(
+//   "/transferAmount",
+//   authenticationMiddleware,
+//   validate(paymentSchema.transferAmountValidation),
+//   paymentController.transferAmount
+// );
 
 router.get(
   "/getBalance",
@@ -68,6 +68,13 @@ router.post(
   authenticationMiddleware,
   validate(paymentSchema.deductAndTransferPaymentValidation),
   paymentController.deductAndTransferPayment
+);
+
+router.post(
+  "/giveTip",
+  authenticationMiddleware,
+  validate(paymentSchema.giveTipValidation),
+  paymentController.giveTip
 );
 
 export default router;

@@ -3,13 +3,14 @@ import { getUserById } from "../services/user.services.js";
 import { TryCatch } from "../utils/helper.js";
 import { userRole } from "../utils/enums/enums.js";
 import httpStatus from "http-status";
+import ErrorHandler from "../utils/ErrorHandler.js";
 
 const getAllNotifications = TryCatch(async (req, res, next) => {
   const { userId } = req;
 
   const user = await getUserById(userId);
   const role = user.role;
-  let query = {};
+  let query = { isRead: false };
 
   if (role == userRole.DRIVER) query = { driverId: userId };
   if (role == userRole.CUSTOMER) query = { customerId: userId };
@@ -47,6 +48,35 @@ const getAllNotifications = TryCatch(async (req, res, next) => {
   });
 });
 
+const readNotification = TryCatch(async (req, res, next) => {
+  const { userId } = req;
+  const { notificationId } = req.params;
+
+  const user = await getUserById(userId);
+  const role = user.role;
+  let query = { _id: notificationId };
+
+  if (role == userRole.DRIVER) query = { driverId: userId };
+  if (role == userRole.CUSTOMER) query = { customerId: userId };
+
+  const notification = await Notification.findOne(query);
+
+  if (!notification) {
+    return next(
+      new ErrorHandler("Notification not found", httpStatus.BAD_REQUEST)
+    );
+  }
+
+  notification.isRead = true;
+  await notification.save();
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    notification,
+  });
+});
+
 export default {
   getAllNotifications,
+  readNotification,
 };

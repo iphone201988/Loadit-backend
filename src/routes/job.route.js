@@ -5,6 +5,7 @@ import jobSchema from "../schema/job.schema.js";
 import { validate } from "../utils/helper.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { validateFiles } from "../middlewares/validateFiles.middleware.js";
+import uploadS3 from "../middlewares/multerS3.middleware.js";
 
 const router = express.Router();
 
@@ -72,7 +73,7 @@ router.put(
 router.put(
   "/completeJob",
   authenticationMiddleware,
-  upload.fields([
+  uploadS3.fields([
     { name: "pickupImage", maxCount: 1 },
     { name: "dropOffImage", maxCount: 1 },
   ]),
@@ -97,7 +98,7 @@ router.put(
 router.put(
   "/updateDropOffStatus/:jobId",
   authenticationMiddleware,
-  upload.fields([
+  uploadS3.fields([
     { name: "pickupImage", maxCount: 1 },
     { name: "dropOffImage", maxCount: 1 },
   ]),
@@ -115,7 +116,7 @@ router.post(
 router.post(
   "/recognizeFace",
   authenticationMiddleware,
-  upload.single("faceImage"),
+  uploadS3.single("faceImage"),
   validateFiles(["faceImage"]),
   validate(jobSchema.recognizeFaceValidation),
   jobController.recognizeFace

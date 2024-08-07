@@ -16,7 +16,8 @@ const paymentSchema = new Schema(
         // transactionType.DRIVER_WITHDRAW,
       ],
     },
-    paymentIntentId: { type: String },
+    transactionDate: { type: Date },
+    transactionId: { type: String },
     // paymentTransferredStatus: { type: Boolean, default: false },
     isTip: { type: Boolean },
     status: {
